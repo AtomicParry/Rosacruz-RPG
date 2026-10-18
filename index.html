@@ -119,6 +119,7 @@ tr.blink .bar i{background:#ff4d63}
 .pcard{padding:16px;gap:10px}
 #inv{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
 .pn{font-size:26px}
+textarea.grow,textarea.auto{field-sizing:content;overflow:hidden;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -255,7 +256,7 @@ async function sheet(id,sec){
   app.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
     app.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
     app.querySelectorAll('.tab').forEach(p=>p.classList.toggle('hide',p.dataset.p!==b.dataset.t)); grow();growAll()});
-  const ta=$('textarea.auto'),grow=()=>{ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight+4,window.innerHeight*.6)+'px'};
+  const ta=$('textarea.auto'),FS=CSS.supports('field-sizing','content'),grow=()=>{if(FS){ta.style.height='';return}ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight+4,window.innerHeight*.6)+'px'};
 
   /* combate (estrutura) */
   const CB=[['Combate corporal',[['cl','Armas leves','des'],['cm','Armas médias','for'],['cp','Armas pesadas','for'],['cv','Armas variantes',null]]],
@@ -284,7 +285,7 @@ async function sheet(id,sec){
   if(can){$('#ph').onclick=()=>$('#fi').click();
     $('#fi').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),r=Math.min(1,400/Math.max(im.width,im.height));c.width=im.width*r;c.height=im.height*r;c.getContext('2d').drawImage(im,0,0,c.width,c.height);S.foto=c.toDataURL('image/jpeg',.75);showPh();save()};im.src=URL.createObjectURL(f)}}
   /* listas */
-  const gr=e=>{e.style.height='auto';e.style.height=(e.scrollHeight+e.offsetHeight-e.clientHeight)+'px'};const growAll=()=>app.querySelectorAll('textarea.grow').forEach(gr);
+  const gr=e=>{if(FS){e.style.height='';return}e.style.height='auto';e.style.height=(e.scrollHeight+e.offsetHeight-e.clientHeight+2)+'px'};const growAll=()=>app.querySelectorAll('textarea.grow').forEach(gr);
   const lists=()=>{
     const dis=can?'':'disabled';
     $('#pw').innerHTML=S.pw.map((p,i)=>`<div class="pcard"><div class="ph2"><input class="pn" data-l="pw" data-i="${i}" data-f="n" placeholder="Nome do poder" value="${esc(p.n)}" ${dis}><button class="g sm" data-r="pw" data-i="${i}" title="Remover" ${dis}>×</button></div><textarea class="grow" rows="2" data-l="pw" data-i="${i}" data-f="d" placeholder="Descrição, custo, alcance…" ${dis}>${esc(p.d)}</textarea></div>`).join('')||'<p class="l">Nenhum poder ainda.</p>';
