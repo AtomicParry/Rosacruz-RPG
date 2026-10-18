@@ -177,6 +177,15 @@ textarea.grow,textarea.auto{field-sizing:content;overflow:hidden;box-sizing:bord
 .t_cura{background:linear-gradient(135deg,#40331a,#1a1d21)}.t_ini{background:linear-gradient(135deg,#1c3a38,#1d2040)}
 .t_sor{background:linear-gradient(135deg,#2c1a45,#1a1d21)}
 textarea.hist{min-height:60vh;width:100%;line-height:1.6}
+
+.tg{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.tl{border-radius:14px;padding:10px 6px 8px;gap:3px}
+.tv{gap:4px}.tv>b,.tv>input:first-child{font-size:18px;min-width:30px}
+.tv input{width:46px;border-radius:8px;padding:4px 2px;font-size:15px}
+.tl small{font-size:9.5px}.tl em{font-size:11px}
+.mp{display:flex;gap:12px;align-items:center}
+.mp input{width:120px;font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:700;text-align:center}
+.mp button{font-size:20px;width:44px}
 </style>
 </head>
 <body>
@@ -226,6 +235,12 @@ async function clearRolls(){
     for(const d of sn.docs){b.delete(d.ref);if(++c%400===0){await b.commit();b=writeBatch(db)}}
     await b.commit()}catch(e){alert('Não foi possível limpar as rolagens.')}
 }
+const LOCS=['Cabeça','Tórax','Abdômen','Braço direito','Braço esquerdo','Perna direita','Perna esquerda'];
+async function rollLoc(who){
+  const a=new Uint32Array(1);crypto.getRandomValues(a);const d=a[0]%7+1;
+  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:'Local de acerto',loc:d,locName:LOCS[d-1],h:0,f:0,mod:0,total:d,t:serverTimestamp()})}catch(e){}
+  return d;
+}
 function diceInit(){
   if($('#dice'))return;
   const d=document.createElement('div');d.id='dice';
@@ -237,6 +252,7 @@ function diceInit(){
   $('#dgo').onclick=()=>rollDice($('#dl').value,$('#dm').value);
   unsub=onSnapshot(query(collection(db,'rolls'),orderBy('t','desc'),limit(40)),snap=>{
     $('#dlog').innerHTML=snap.docs.map(x=>{const v=x.data({serverTimestamps:'estimate'}),tm=v.t?.toDate?.().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})||'';
+      if(v.loc)return `<div class="rl"><div class="rw"><b>${esc(v.who)}</b><span>Local de acerto (1d7) ${tm}</span></div><div class="rres"><span>Dado: ${v.loc}</span><b class="rt" style="font-size:22px">${esc(v.locName)}</b></div></div>`;
       const hv=v.h+v.mod,fv=v.f+v.mod,res=Math.max(hv,fv),w=hv>fv?'Esperança':fv>hv?'Medo':'Empate',sg=v.mod>=0?'+':'−',m=Math.abs(v.mod);
       return `<div class="rl"><div class="rw"><b>${esc(v.who)}</b><span>${esc(v.label)} ${tm}</span></div>
         <div class="rd2"><div class="dv h${hv>=fv?' win':''}"><i class="dh">${v.h}</i><small>Esperança</small><span>${sg} ${m} = <b>${hv}</b></span></div>
@@ -290,8 +306,12 @@ function hub(){ diceAdmin();
 const summ=(S,sec,owner)=>({sec,owner,nome:S.nome||'',foto:S.foto||'',idade:S.idade||'',rank:S.rank||'',lvl:parseInt(S.lvl)||1,funcao:S.funcao||''});
 async function list(sec){
   if(sec==='npc'&&!admin) return hub();
-  app.innerHTML=`<div class="wrap">${top(1)}<h2>${SECS[sec][0]}</h2><br><div class="grid" id="g">Carregando…</div></div>`;
+  app.innerHTML=`<div class="wrap">${top(1)}<h2>${SECS[sec][0]}</h2><br>${sec==='npc'?'<div class="box" id="medo"><h3>Medo</h3><div class="mp"><button class="g" id="mm">−</button><input id="mpts" type="number"><button class="g" id="mp">+</button></div></div>':''}<div class="grid" id="g">Carregando…</div></div>`;
   topBind(hub);
+  if(sec==='npc'){const ref=doc(db,'config','medo'),mi=$('#mpts');let p=0;
+    try{p=(await getDoc(ref)).data()?.pts||0}catch(e){}
+    mi.value=p;const sv=v=>{p=Math.max(0,parseInt(v)||0);mi.value=p;setDoc(ref,{pts:p}).catch(()=>alert('Não foi possível salvar o Medo.'))};
+    mi.onchange=()=>sv(mi.value);$('#mm').onclick=()=>sv(p-1);$('#mp').onclick=()=>sv(p+1)}
   const cs=await getDocs(query(collection(db,'cards'),where('sec','==',sec)));
   const cards=new Map();cs.forEach(d=>cards.set(d.id,d.data()));
   const fs=await getDocs(admin?query(collection(db,'fichas'),where('sec','==',sec)):query(collection(db,'fichas'),where('sec','==',sec),where('owner','==',user.uid)));
@@ -318,7 +338,7 @@ async function sheet(id,sec){
 
   app.innerHTML=`<div class="wrap">${top(1)}
   <div class="hd"><h2 id="hn"></h2><span id="hs"></span><label class="l" style="margin-left:auto">Bônus extra nas rolagens <input id="rbonus" type="number" value="0" style="width:70px"></label></div>
-  <div class="tabs">${['Principal','Anotações','Poderes','Inventário','História','Talentos',...(sec==='npc'?['Medo']:[])].map((x,i)=>`<button data-t="${i}" class="${i?'':'on'}">${x}</button>`).join('')}</div>
+  <div class="tabs">${['Principal','Anotações','Poderes','Inventário','História','Talentos'].map((x,i)=>`<button data-t="${i}" class="${i?'':'on'}">${x}</button>`).join('')}</div>
 
   <div class="tab" data-p="0"><div class="lay"><aside>
     <div class="box"><div class="photo" id="ph">Clique para enviar foto</div><input type="file" id="fi" accept="image/*" class="hide"></div>
@@ -329,13 +349,13 @@ async function sheet(id,sec){
       ${[['san','Sanidade','10 + INT + POD'],['ene','Energia','10 + FOR + CON'],['vit','Vitalidade','CON + TAM: soma das partes']].map(([k,l,h])=>`<div><label class="l">${l} <small>${h}</small></label><div class="cv">${k==='vit'?'<b id="vit_c" class="cur"></b>':`<input class="cur" type="number" data-s="${k}" ${can?'':'disabled'}>`}<span>/ <b id="${k}_m"></b></span></div><div class="bar"><i id="${k}_b"></i></div></div>`).join('')}<div><label class="l">Esperança</label><div class="cv"><input class="cur" type="number" data-k="esp" value="${esc(S.esp)}" ${can?'':'disabled'}></div></div></div>
       <table><thead><tr><th>Parte do corpo</th><th>Máx</th><th>Atual</th><th></th></tr></thead><tbody>
       ${LIMBS.map(([k,l])=>`<tr><td>${l}</td><td id="hm_${k}"></td><td><input class="hpi" type="number" data-hp="${k}" ${can?'':'disabled'}><div class="bar"><i id="hb_${k}"></i></div></td><td><button class="sm g" data-h="${k}" data-d="1" ${can?'':'disabled'}>−</button> <button class="sm g" data-h="${k}" data-d="-1" ${can?'':'disabled'}>+</button></td></tr>`).join('')}</tbody></table></div>
-    <div class="box"><h3>Deslocamento e Modificadores</h3><div class="tg">${TILES.map(([k,l,ed,rl])=>`<div class="tl t_${k}"><div class="tv">${ed?inp(k,'','number'):`<b id="tl_${k}"></b>`}<i>+</i>${inp(k+'x','','number')}</div><small>${l}</small><em>= <b id="tt_${k}"></b>${rl?` <button class="rb" data-rl="Iniciativa" data-rm="tt_${k}" title="Rolar 2d12">d12</button>`:''}</em></div>`).join('')}</div></div>
+    <div class="box"><h3>Modificadores</h3><div class="tg">${TILES.map(([k,l,ed,rl])=>`<div class="tl t_${k}"><div class="tv">${ed?inp(k,'','number'):`<b id="tl_${k}"></b>`}<i>+</i>${inp(k+'x','','number')}</div><small>${l}</small><em>= <b id="tt_${k}"></b>${rl?` <button class="rb" data-rl="Iniciativa" data-rm="tt_${k}" title="Rolar 2d12">d12</button>`:''}</em></div>`).join('')}</div></div>
     <div class="box"><h3>Identificação</h3><div class="f">${MAIN.map(([k,l,t])=>`<div><label>${l}</label>${inp(k,'',t)}</div>`).join('')}
       <div><label>Nível (editável)</label>${inp('lvl','','number')}</div>
       <div><label>XP <span id="xpt"></span></label>${inp('xp','','number')}<div class="xpbar"><i id="xpb"></i></div></div></div></div>
     <div class="box"><h3>Perícias</h3><div class="l" style="margin-bottom:8px">Pontos restantes: <b id="spt" class="ok"></b> (20 + INT + 2 por nível)</div>
       <div class="sk">${SKILLS.map(s=>`<div><span>${s}</span>${inp('sk.'+s,'','number')}<button class="rb" data-rl="${s}" data-rk="${s}" title="Rolar 2d12">d12</button></div>`).join('')}</div></div>
-    <div class="box"><h3>Combate</h3><div class="l" style="margin-bottom:8px">Pontos de combate restantes: <b id="cpt" class="ok"></b> de <span id="cptt"></span> (1 a cada 2 níveis)</div><div class="f" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))" id="cmb"></div></div>
+    <div class="box"><h3>Combate</h3><div style="margin-bottom:10px"><button id="loc">Rolar local de acerto (1d7)</button> <b id="locr" class="ok" style="margin-left:8px;font-size:18px"></b></div><div class="l" style="margin-bottom:8px">Pontos de combate restantes: <b id="cpt" class="ok"></b> de <span id="cptt"></span> (1 a cada 2 níveis)</div><div class="f" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))" id="cmb"></div></div>
     <div class="box"><h3>Reações</h3><div class="f" style="max-width:190px;margin-bottom:10px"><div><label>Armadura (entra na CA)</label>${inp('cb.arm','','number')}</div></div>
       <table><thead><tr><th style="text-align:left">Reação</th><th>Base</th><th>Outro</th><th>Total</th></tr></thead><tbody>
       <tr><td style="text-align:left">Esquiva <small>7+DES+CON+Armadura</small></td><td id="r1b"></td><td>${inp('cb.eo','','number')}</td><td class="ok" id="r1t"></td></tr>
@@ -348,7 +368,7 @@ async function sheet(id,sec){
   <div class="tab hide" data-p="3"><div class="box"><h3>Inventário</h3><div id="inv"></div><button id="ainv" style="margin-top:12px" ${can?'':'disabled'}>+ Novo item</button></div></div>
   <div class="tab hide" data-p="4"><textarea class="grow hist" data-k="hist" placeholder="A história do personagem…" ${can?'':'disabled'}>${esc(S.hist)}</textarea></div>
   <div class="tab hide" data-p="5"><div class="box"><h3>Talentos</h3><div id="tal"></div><button id="atal" style="margin-top:12px" ${can?'':'disabled'}>+ Novo talento</button></div></div>
-  ${sec==='npc'?`<div class="tab hide" data-p="6"><div class="box"><h3>Medo</h3><div class="f" style="max-width:220px"><div><label>Pontos de Medo</label>${inp('medo','','number')}</div></div><label class="l" style="margin-top:14px">Detalhes do mestre</label><textarea class="grow" data-k="medon" placeholder="Efeitos, gatilhos, custos…" ${can?'':'disabled'}>${esc(S.medon)}</textarea></div></div>`:''}</div>`;
+</div>`;
   topBind(()=>list(sec));
 
   /* abas */
@@ -402,7 +422,7 @@ async function sheet(id,sec){
   $('#ainv').onclick=()=>{S.inv.push({n:'',q:1,d:''});lists();save()};
   $('#atal').onclick=()=>{S.tal.push({n:'',d:''});lists();save()};
   /* entrada genérica */
-  app.firstElementChild.addEventListener('click',e=>{const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome)});
+  app.firstElementChild.addEventListener('click',async e=>{if(e.target.closest('#loc')){const d=await rollLoc(S.nome);$('#locr').textContent=d+': '+LOCS[d-1];return}const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome)});
   app.firstElementChild.addEventListener('input',e=>{const el=e.target;
     if(el.dataset.s){const k=el.dataset.s,m=k==='san'?10+A('int')+A('pod'):10+A('for')+A('con');S['d'+k]=m-n(el.value);calc();save();return}
     if(el.dataset.hp){const i=LIMBS.find(x=>x[0]===el.dataset.hp)[2];S.hp[el.dataset.hp]=hp()[i]-n(el.value);calc();save();return}
