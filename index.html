@@ -214,8 +214,8 @@ const SECS={mesa:['Mesa Principal','Os investigadores em campo'],guilda:['Guilda
 const ATTR=[['for','Força'],['con','Constituição'],['tam','Tamanho'],['des','Destreza'],['int','Inteligência'],['pod','Poder'],['car','Carisma']];
 const SKILLS=['Investigação','Medicina','Pilotagem','Tecnologia','Persuasão','Atualidades','Tática','Enganação','Intimidação','Prestidigitação','Atletismo','Mecânica','Percepção','Dedução','Ofício','Pesquisa','Furtividade','Fé/Convicção','Ocultismo','Liderança','Diplomacia','Musculatura','Tolerância','Vontade'];
 const MAIN=[['nome','Nome'],['idade','Idade'],['apelido','Apelido'],['nasc','Data de nascimento','date'],['genero','Gênero'],['nac','Nacionalidade'],['funcao','Função'],['subfuncao','SubFunção'],['rank','Rank'],['insc','Número de inscrição'],['prof','Profissão'],['altura','Altura'],['peso','Peso'],['tend','Tendência'],['missoes','Missões feitas','number']];
-/* Tabela de vitalidade (CON + TAM): [cabeça, tórax, abdômen, braço, perna] */
-const VIT={2:[1,3,2,1,1],3:[2,3,2,1,2],4:[2,4,3,1,2],5:[3,5,4,2,3],6:[3,5,4,2,3],7:[4,6,5,3,4],8:[5,7,6,3,5],9:[5,8,7,4,6],10:[6,9,7,4,6],11:[6,10,8,5,7],12:[7,11,9,5,8],13:[8,12,10,6,9],14:[9,13,11,6,10],15:[10,14,12,7,11],16:[11,15,13,8,12]};
+/* Tabela de vitalidade, chave = CON + TAM (1 a 20): [cabeça, tórax, abdômen, braço, perna] */
+const VIT={1:[3,5,4,2,3],2:[3,5,4,2,3],3:[4,6,5,3,4],4:[5,7,6,3,5],5:[5,8,7,4,6],6:[6,9,7,4,6],7:[6,10,8,5,7],8:[7,11,9,5,8],9:[8,12,10,6,9],10:[9,13,11,6,10],11:[10,14,12,7,11],12:[11,15,13,8,12],13:[12,16,14,8,13],14:[13,17,15,9,14],15:[14,18,16,9,15],16:[15,19,17,10,16],17:[16,20,18,10,17],18:[17,21,19,11,18],19:[18,22,20,11,19],20:[19,23,21,12,20]};
 const TILES=[['and','Andar',1],['dis','Disparar',0],['md','Mod. de Dano',1],['mxp','Mod. de XP',0],['cura','Taxa de Cura',0],['ini','Bônus de Iniciativa',0,1],['sor','Pts. de Sorte',1]];
 const LIMBS=[['cab','Cabeça',0],['tor','Tórax',1],['abd','Abdômen',2],['bd','Braço direito',3],['be','Braço esquerdo',3],['pd','Perna direita',4],['pe','Perna esquerda',4]];
 
@@ -386,7 +386,7 @@ async function sheet(id,sec){
   $('#cmb').innerHTML=CB.map(([t,r])=>`<div><h3 style="font-size:18px">${t}</h3>${r.map(([k,l,a])=>`<div class="attr" style="grid-template-columns:1fr 60px 40px 44px"><span>${l}${a?` <small class="l" style="display:inline">(+${a.toUpperCase()}/2)</small>`:''}</span>${inp('cb.'+k,'','number')}<b class="ok" id="t_${k}"></b><button class="rb" data-rl="${t}: ${l}" data-rm="t_${k}" title="Rolar 2d12">d12</button></div>`).join('')}</div>`).join('');
 
   /* cálculos */
-  const hp=()=>VIT[Math.min(16,Math.max(4,A('con')+A('tam')))];
+  const hp=()=>VIT[Math.min(20,Math.max(1,A('con')+A('tam')))];
   function calc(){
     S.lvl=Math.max(1,n(S.lvl));
     $('#hn').textContent=S.nome||'Sem nome';$('#hs').textContent='Nível '+S.lvl+(S.funcao?', '+S.funcao:'');$('#xpt').textContent=`(${n(S.xp)}/${5*S.lvl})`;$('#xpb').style.width=Math.min(100,n(S.xp)/(5*S.lvl)*100)+'%';
