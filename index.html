@@ -153,6 +153,30 @@ textarea.grow,textarea.auto{field-sizing:content;overflow:hidden;box-sizing:bord
 .dv.win{opacity:1}.dv.h.win{border-color:#f2c230}.dv.f.win{border-color:#7c4dff}
 .dv i{width:38px!important;height:38px!important;font-size:18px}
 .rres{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;border-top:1px dotted var(--line);padding-top:6px;color:var(--mut)}
+
+.st>div{border-radius:14px;padding:14px;border:1px solid #ffffff12}
+.st>div:nth-child(1){background:linear-gradient(135deg,#17294d,#12161d)}
+.st>div:nth-child(2){background:linear-gradient(135deg,#43331a,#12161d)}
+.st>div:nth-child(3){background:linear-gradient(135deg,#4a1822,#12161d)}
+.st>div:nth-child(4){background:linear-gradient(135deg,#463a12,#12161d)}
+.st .cv,.st .bar{border:0!important;padding:0!important}
+.st .cv{background:none!important;margin-top:6px}
+.st .bar{background:#0b0c0e!important;height:6px;border-radius:4px;margin-top:8px}
+.bar i{border-radius:4px}
+.st>div label.l{font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.tl{border-radius:20px;padding:16px 10px 12px;text-align:center;display:grid;gap:6px;justify-items:center;border:1px solid #ffffff10;background:#202327}
+.tv{display:flex;align-items:center;gap:8px;font-weight:700}
+.tv>b,.tv>input:first-child{font-size:26px;min-width:44px}
+.tv input{width:62px;text-align:center;border-radius:12px;background:#0007;font-weight:700}
+.tv>i{font-style:normal;color:var(--mut)}
+.tl small{color:#c9c6bd;letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.tl em{font-style:normal;color:var(--brass);font-size:13px}
+.t_and{background:linear-gradient(135deg,#1d3a2a,#1a1d21)}.t_dis{background:linear-gradient(135deg,#1a3340,#1a1d21)}
+.t_md{background:linear-gradient(135deg,#43181f,#1a1d21)}.t_mxp{background:linear-gradient(135deg,#3a2140,#1a1d21)}
+.t_cura{background:linear-gradient(135deg,#40331a,#1a1d21)}.t_ini{background:linear-gradient(135deg,#1c3a38,#1d2040)}
+.t_sor{background:linear-gradient(135deg,#2c1a45,#1a1d21)}
+textarea.hist{min-height:60vh;width:100%;line-height:1.6}
 </style>
 </head>
 <body>
@@ -177,10 +201,11 @@ let user=null, admin=sessionStorage.getItem('adm')==='1';
 
 const SECS={mesa:['Mesa Principal','Os investigadores em campo'],guilda:['Guilda','Organização e seus membros'],npc:['NPCs','Apenas para o mestre']};
 const ATTR=[['for','Força'],['con','Constituição'],['tam','Tamanho'],['des','Destreza'],['int','Inteligência'],['pod','Poder'],['car','Carisma']];
-const SKILLS=['Investigação','Medicina','Pilotagem','Tecnologia','Persuasão','Atualidades','Tática','Enganação','Intimidação','Prestidigitação','Atletismo','Mecânica','Percepção','Dedução','Ofício','Pesquisa','Furtividade','Fé/Convicção','Ocultismo','Liderança','Diplomacia','Carga','Tolerância','Vontade'];
+const SKILLS=['Investigação','Medicina','Pilotagem','Tecnologia','Persuasão','Atualidades','Tática','Enganação','Intimidação','Prestidigitação','Atletismo','Mecânica','Percepção','Dedução','Ofício','Pesquisa','Furtividade','Fé/Convicção','Ocultismo','Liderança','Diplomacia','Musculatura','Tolerância','Vontade'];
 const MAIN=[['nome','Nome'],['idade','Idade'],['apelido','Apelido'],['nasc','Data de nascimento','date'],['genero','Gênero'],['nac','Nacionalidade'],['funcao','Função'],['subfuncao','SubFunção'],['rank','Rank'],['insc','Número de inscrição'],['prof','Profissão'],['altura','Altura'],['peso','Peso'],['tend','Tendência'],['missoes','Missões feitas','number']];
 /* Tabela de vitalidade (CON + TAM): [cabeça, tórax, abdômen, braço, perna] */
 const VIT={2:[1,3,2,1,1],3:[2,3,2,1,2],4:[2,4,3,1,2],5:[3,5,4,2,3],6:[3,5,4,2,3],7:[4,6,5,3,4],8:[5,7,6,3,5],9:[5,8,7,4,6],10:[6,9,7,4,6],11:[6,10,8,5,7],12:[7,11,9,5,8],13:[8,12,10,6,9],14:[9,13,11,6,10],15:[10,14,12,7,11],16:[11,15,13,8,12]};
+const TILES=[['and','Andar',1],['dis','Disparar',0],['md','Mod. de Dano',1],['mxp','Mod. de XP',0],['cura','Taxa de Cura',0],['ini','Bônus de Iniciativa',0,1],['sor','Pts. de Sorte',1]];
 const LIMBS=[['cab','Cabeça',0],['tor','Tórax',1],['abd','Abdômen',2],['bd','Braço direito',3],['be','Braço esquerdo',3],['pd','Perna direita',4],['pe','Perna esquerda',4]];
 
 
@@ -285,7 +310,7 @@ async function list(sec){
 /* ---------- FICHA ---------- */
 async function sheet(id,sec){
   const snap=await getDoc(doc(db,'fichas',id)); const S=snap.data().s;
-  S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.lvl=S.lvl||1;S.xp=S.xp||0;if(S.espmax==null)S.espmax=6;if(S.esp==null)S.esp=2;
+  S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.lvl=S.lvl||1;S.xp=S.xp||0;if(S.esp==null)S.esp=2;if(S.and==null)S.and=9;S.tal=S.tal||[];if(S.sk.Carga!=null){if(S.sk.Musculatura==null)S.sk.Musculatura=S.sk.Carga;delete S.sk.Carga}
   const can=admin||snap.data().owner===user.uid;
   const n=v=>parseInt(v)||0, A=k=>n(S.a[k]);
   let t;const save=()=>{clearTimeout(t);t=setTimeout(async()=>{await updateDoc(doc(db,'fichas',id),{s:S});await setDoc(doc(db,'cards',id),summ(S,sec,snap.data().owner))},600)};
@@ -293,33 +318,37 @@ async function sheet(id,sec){
 
   app.innerHTML=`<div class="wrap">${top(1)}
   <div class="hd"><h2 id="hn"></h2><span id="hs"></span><label class="l" style="margin-left:auto">Bônus extra nas rolagens <input id="rbonus" type="number" value="0" style="width:70px"></label></div>
-  <div class="tabs">${['Principal','Anotações','Poderes','Inventário'].map((x,i)=>`<button data-t="${i}" class="${i?'':'on'}">${x}</button>`).join('')}</div>
+  <div class="tabs">${['Principal','Anotações','Poderes','Inventário','História','Talentos',...(sec==='npc'?['Medo']:[])].map((x,i)=>`<button data-t="${i}" class="${i?'':'on'}">${x}</button>`).join('')}</div>
 
   <div class="tab" data-p="0"><div class="lay"><aside>
     <div class="box"><div class="photo" id="ph">Clique para enviar foto</div><input type="file" id="fi" accept="image/*" class="hide"></div>
-    <div class="box"><h3>Atributos</h3><div class="l" style="margin-bottom:8px">Pontos restantes: <b id="pts" class="ok"></b> de 15</div>
+    <div class="box"><h3>Atributos</h3><div class="l" style="margin-bottom:8px">Pontos restantes: <b id="pts" class="ok"></b> de <span id="ptt"></span> (+1 por nível)</div>
       <div class="ag">${ATTR.map(([k,l])=>`<div><label>${l}</label>${inp('a.'+k,'','number')}</div>`).join('')}</div></div>
   </aside><main>
     <div class="box"><h3>Status</h3><div class="st">
-      ${[['san','Sanidade','10 + INT + POD'],['ene','Energia','10 + FOR + CON'],['vit','Vitalidade','CON + TAM: soma das partes']].map(([k,l,h])=>`<div><label class="l">${l} <small>${h}</small></label><div class="cv">${k==='vit'?'<b id="vit_c" class="cur"></b>':`<input class="cur" type="number" data-s="${k}" ${can?'':'disabled'}>`}<span>/ <b id="${k}_m"></b></span></div><div class="bar"><i id="${k}_b"></i></div></div>`).join('')}<div><label class="l">Esperança <small>pontos atuais / máximo</small></label><div class="cv"><input class="cur" type="number" data-k="esp" value="${esc(S.esp)}" ${can?'':'disabled'}><span>/ <input type="number" data-k="espmax" value="${esc(S.espmax)}" ${can?'':'disabled'}></span></div><div class="bar"><i id="esp_b" style="background:#f2c230"></i></div></div></div>
+      ${[['san','Sanidade','10 + INT + POD'],['ene','Energia','10 + FOR + CON'],['vit','Vitalidade','CON + TAM: soma das partes']].map(([k,l,h])=>`<div><label class="l">${l} <small>${h}</small></label><div class="cv">${k==='vit'?'<b id="vit_c" class="cur"></b>':`<input class="cur" type="number" data-s="${k}" ${can?'':'disabled'}>`}<span>/ <b id="${k}_m"></b></span></div><div class="bar"><i id="${k}_b"></i></div></div>`).join('')}<div><label class="l">Esperança</label><div class="cv"><input class="cur" type="number" data-k="esp" value="${esc(S.esp)}" ${can?'':'disabled'}></div></div></div>
       <table><thead><tr><th>Parte do corpo</th><th>Máx</th><th>Atual</th><th></th></tr></thead><tbody>
       ${LIMBS.map(([k,l])=>`<tr><td>${l}</td><td id="hm_${k}"></td><td><input class="hpi" type="number" data-hp="${k}" ${can?'':'disabled'}><div class="bar"><i id="hb_${k}"></i></div></td><td><button class="sm g" data-h="${k}" data-d="1" ${can?'':'disabled'}>−</button> <button class="sm g" data-h="${k}" data-d="-1" ${can?'':'disabled'}>+</button></td></tr>`).join('')}</tbody></table></div>
+    <div class="box"><h3>Deslocamento e Modificadores</h3><div class="tg">${TILES.map(([k,l,ed,rl])=>`<div class="tl t_${k}"><div class="tv">${ed?inp(k,'','number'):`<b id="tl_${k}"></b>`}<i>+</i>${inp(k+'x','','number')}</div><small>${l}</small><em>= <b id="tt_${k}"></b>${rl?` <button class="rb" data-rl="Iniciativa" data-rm="tt_${k}" title="Rolar 2d12">d12</button>`:''}</em></div>`).join('')}</div></div>
     <div class="box"><h3>Identificação</h3><div class="f">${MAIN.map(([k,l,t])=>`<div><label>${l}</label>${inp(k,'',t)}</div>`).join('')}
       <div><label>Nível (editável)</label>${inp('lvl','','number')}</div>
       <div><label>XP <span id="xpt"></span></label>${inp('xp','','number')}<div class="xpbar"><i id="xpb"></i></div></div></div></div>
-    <div class="box"><h3>Perícias</h3><div class="l" style="margin-bottom:8px">Pontos restantes: <b id="spt" class="ok"></b> (20 + INT)</div>
+    <div class="box"><h3>Perícias</h3><div class="l" style="margin-bottom:8px">Pontos restantes: <b id="spt" class="ok"></b> (20 + INT + 2 por nível)</div>
       <div class="sk">${SKILLS.map(s=>`<div><span>${s}</span>${inp('sk.'+s,'','number')}<button class="rb" data-rl="${s}" data-rk="${s}" title="Rolar 2d12">d12</button></div>`).join('')}</div></div>
-    <div class="box"><h3>Combate</h3><div class="f" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))" id="cmb"></div></div>
+    <div class="box"><h3>Combate</h3><div class="l" style="margin-bottom:8px">Pontos de combate restantes: <b id="cpt" class="ok"></b> de <span id="cptt"></span> (1 a cada 2 níveis)</div><div class="f" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))" id="cmb"></div></div>
     <div class="box"><h3>Reações</h3><div class="f" style="max-width:190px;margin-bottom:10px"><div><label>Armadura (entra na CA)</label>${inp('cb.arm','','number')}</div></div>
       <table><thead><tr><th style="text-align:left">Reação</th><th>Base</th><th>Outro</th><th>Total</th></tr></thead><tbody>
-      <tr><td style="text-align:left">Esquiva <small>7+DES+CON+Armadura</small></td><td id="r1b"></td><td>${inp('cb.eo','','number')}</td><td class="ok"><b id="r1t"></b> <button class="rb" data-rl="Esquiva" data-rm="r1t" title="Rolar 2d12">d12</button></td></tr>
+      <tr><td style="text-align:left">Esquiva <small>7+DES+CON+Armadura</small></td><td id="r1b"></td><td>${inp('cb.eo','','number')}</td><td class="ok" id="r1t"></td></tr>
       <tr><td style="text-align:left">Ler movimentos <small>DES</small></td><td id="r2b"></td><td>${inp('cb.lo','','number')}</td><td class="ok"><b id="r2t"></b> <button class="rb" data-rl="Ler movimentos" data-rm="r2t" title="Rolar 2d12">d12</button></td></tr>
       <tr><td style="text-align:left">Bloqueio <small>CON</small></td><td id="r3b"></td><td>${inp('cb.out','','number')}</td><td class="ok"><b id="r3t"></b> <button class="rb" data-rl="Bloqueio" data-rm="r3t" title="Rolar 2d12">d12</button></td></tr></tbody></table></div>
   </main></div></div>
 
   <div class="tab hide" data-p="1"><textarea class="auto" data-k="nt" placeholder="Pistas, teorias, nomes, lugares…" ${can?'':'disabled'}>${esc(S.nt)}</textarea></div>
   <div class="tab hide" data-p="2"><div class="box"><h3>Poderes</h3><div id="pw"></div><button id="apw" style="margin-top:12px" ${can?'':'disabled'}>+ Novo poder</button></div></div>
-  <div class="tab hide" data-p="3"><div class="box"><h3>Inventário</h3><div id="inv"></div><button id="ainv" style="margin-top:12px" ${can?'':'disabled'}>+ Novo item</button></div></div></div>`;
+  <div class="tab hide" data-p="3"><div class="box"><h3>Inventário</h3><div id="inv"></div><button id="ainv" style="margin-top:12px" ${can?'':'disabled'}>+ Novo item</button></div></div>
+  <div class="tab hide" data-p="4"><textarea class="grow hist" data-k="hist" placeholder="A história do personagem…" ${can?'':'disabled'}>${esc(S.hist)}</textarea></div>
+  <div class="tab hide" data-p="5"><div class="box"><h3>Talentos</h3><div id="tal"></div><button id="atal" style="margin-top:12px" ${can?'':'disabled'}>+ Novo talento</button></div></div>
+  ${sec==='npc'?`<div class="tab hide" data-p="6"><div class="box"><h3>Medo</h3><div class="f" style="max-width:220px"><div><label>Pontos de Medo</label>${inp('medo','','number')}</div></div><label class="l" style="margin-top:14px">Detalhes do mestre</label><textarea class="grow" data-k="medon" placeholder="Efeitos, gatilhos, custos…" ${can?'':'disabled'}>${esc(S.medon)}</textarea></div></div>`:''}</div>`;
   topBind(()=>list(sec));
 
   /* abas */
@@ -340,12 +369,16 @@ async function sheet(id,sec){
     S.lvl=Math.max(1,n(S.lvl));
     $('#hn').textContent=S.nome||'Sem nome';$('#hs').textContent='Nível '+S.lvl+(S.funcao?', '+S.funcao:'');$('#xpt').textContent=`(${n(S.xp)}/${5*S.lvl})`;$('#xpb').style.width=Math.min(100,n(S.xp)/(5*S.lvl)*100)+'%';
     ['san','ene'].forEach(k=>{const m=k==='san'?10+A('int')+A('pod'):10+A('for')+A('con'),c=m-n(S['d'+k]),el=app.querySelector(`[data-s=${k}]`);if(el&&document.activeElement!==el)el.value=c;$('#'+k+'_m').textContent=m;el.classList.toggle('neg',c<0);$('#'+k+'_b').style.width=Math.max(0,Math.min(100,c/m*100))+'%'});
-    const used=ATTR.reduce((s,[k])=>s+A(k),0),left=15-used;$('#pts').textContent=left;$('#pts').style.color=left<0?'#ff6b81':'';
-    const su=Object.values(S.sk).reduce((s,v)=>s+n(v),0),sl=20+A('int')-su;$('#spt').textContent=sl;$('#spt').style.color=sl<0?'#ff6b81':'';
+    const used=ATTR.reduce((s,[k])=>s+A(k),0),left=14+S.lvl-used;$('#ptt').textContent=14+S.lvl;$('#pts').textContent=left;$('#pts').style.color=left<0?'#ff6b81':'';
+    const su=Object.values(S.sk).reduce((s,v)=>s+n(v),0),sl=20+A('int')+2*(S.lvl-1)-su;$('#spt').textContent=sl;$('#spt').style.color=sl<0?'#ff6b81':'';
     const h=hp();let tc=0,tm=0;
     LIMBS.forEach(([k,,i])=>{const cur=h[i]-n(S.hp[k]),e=app.querySelector(`[data-hp=${k}]`);if(document.activeElement!==e)e.value=cur;e.classList.toggle('neg',cur<0);const tr=e.closest('tr');tr.classList.toggle('blink',cur<0);$('#hm_'+k).textContent=h[i];$('#hb_'+k).style.width=Math.max(0,Math.min(100,cur/h[i]*100))+'%';tc+=cur;tm+=h[i]});
     $('#vit_c').textContent=tc;$('#vit_c').classList.toggle('neg',tc<0);$('#vit_m').textContent=tm;$('#vit_b').style.width=Math.max(0,Math.min(100,tc/tm*100))+'%';
-    $('#esp_b').style.width=Math.max(0,Math.min(100,n(S.esp)/Math.max(1,n(S.espmax))*100))+'%';
+    const aT=n(S.and)+n(S.andx);
+    Object.entries({dis:2*aT,mxp:Math.floor(A('car')/2),cura:Math.floor((A('con')+A('tam'))/2),ini:A('des')}).forEach(([k,v])=>{$('#tl_'+k).textContent=v;$('#tt_'+k).textContent=v+n(S[k+'x'])});
+    ['and','md','sor'].forEach(k=>$('#tt_'+k).textContent=n(S[k])+n(S[k+'x']));
+    const cu=['cl','cm','cp','cv','dl','dm','dp','dv','sr','si','sp'].reduce((a,k)=>a+n(S.cb[k]),0),cr=Math.floor(S.lvl/2)-cu;
+    $('#cpt').textContent=cr;$('#cptt').textContent=Math.floor(S.lvl/2);$('#cpt').style.color=cr<0?'#ff6b81':'';
     CB.forEach(([,r])=>r.forEach(([k,,a])=>$('#t_'+k).textContent=n(S.cb[k])+(a?Math.floor(A(a)/2):0)));
     const b1=7+A('des')+A('con')+n(S.cb.arm),b2=A('des'),b3=A('con');
     $('#r1b').textContent=b1;$('#r1t').textContent=b1+n(S.cb.eo);$('#r2b').textContent=b2;$('#r2t').textContent=b2+n(S.cb.lo);$('#r3b').textContent=b3;$('#r3t').textContent=b3+n(S.cb.out);
@@ -360,12 +393,14 @@ async function sheet(id,sec){
   const lists=()=>{
     const dis=can?'':'disabled';
     $('#pw').innerHTML=S.pw.map((p,i)=>`<div class="pcard"><div class="ph2"><input class="pn" data-l="pw" data-i="${i}" data-f="n" placeholder="Nome do poder" value="${esc(p.n)}" ${dis}><button class="g sm" data-r="pw" data-i="${i}" title="Remover" ${dis}>×</button></div><textarea class="grow" rows="2" data-l="pw" data-i="${i}" data-f="d" placeholder="Descrição, custo, alcance…" ${dis}>${esc(p.d)}</textarea></div>`).join('')||'<p class="l">Nenhum poder ainda.</p>';
+    $('#tal').innerHTML=S.tal.map((p,i)=>`<div class="pcard"><div class="ph2"><input class="pn" data-l="tal" data-i="${i}" data-f="n" placeholder="Nome do talento" value="${esc(p.n)}" ${dis}><button class="g sm" data-r="tal" data-i="${i}" title="Remover" ${dis}>×</button></div><textarea class="grow" rows="2" data-l="tal" data-i="${i}" data-f="d" placeholder="Efeito, requisitos…" ${dis}>${esc(p.d)}</textarea></div>`).join('')||'<p class="l">Nenhum talento ainda.</p>';
     $('#inv').innerHTML=S.inv.map((p,i)=>`<div class="pcard"><div class="ph2"><input class="pn" data-l="inv" data-i="${i}" data-f="n" placeholder="Nome do item" value="${esc(p.n)}" ${dis}><button class="g sm" data-r="inv" data-i="${i}" title="Remover" ${dis}>×</button></div><div class="qty"><button class="g sm" data-q="${i}" data-d="-1" ${dis}>−</button><input type="number" data-l="inv" data-i="${i}" data-f="q" value="${esc(p.q)}" ${dis}><button class="g sm" data-q="${i}" data-d="1" ${dis}>+</button><small>quantidade</small></div><textarea class="grow" rows="2" data-l="inv" data-i="${i}" data-f="d" placeholder="Descrição, peso, efeito…" ${dis}>${esc(p.d)}</textarea></div>`).join('')||'<p class="l" style="grid-column:1/-1">Inventário vazio.</p>';
     app.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const it=S.inv[b.dataset.q];it.q=Math.max(0,n(it.q)+n(b.dataset.d));lists();save()});
     growAll();app.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{S[b.dataset.r].splice(b.dataset.i,1);lists();save()});
   };
   $('#apw').onclick=()=>{S.pw.push({n:'',d:''});lists();save()};
   $('#ainv').onclick=()=>{S.inv.push({n:'',q:1,d:''});lists();save()};
+  $('#atal').onclick=()=>{S.tal.push({n:'',d:''});lists();save()};
   /* entrada genérica */
   app.firstElementChild.addEventListener('click',e=>{const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome)});
   app.firstElementChild.addEventListener('input',e=>{const el=e.target;
