@@ -188,6 +188,7 @@ textarea.hist{min-height:60vh;width:100%;line-height:1.6}
 .mp button{font-size:20px;width:44px}
 tr.dead td{opacity:.32;filter:grayscale(1)}
 tr.dead td:first-child{text-decoration:line-through}
+.t_dur{background:linear-gradient(135deg,#3a3a40,#1a1d21)}
 </style>
 </head>
 <body>
@@ -216,7 +217,7 @@ const SKILLS=['Investigação','Medicina','Pilotagem','Tecnologia','Persuasão',
 const MAIN=[['nome','Nome'],['idade','Idade'],['apelido','Apelido'],['nasc','Data de nascimento','date'],['genero','Gênero'],['nac','Nacionalidade'],['funcao','Função'],['subfuncao','SubFunção'],['rank','Rank'],['insc','Número de inscrição'],['prof','Profissão'],['altura','Altura'],['peso','Peso'],['tend','Tendência'],['missoes','Missões feitas','number']];
 /* Tabela de vitalidade, chave = CON + TAM (1 a 20): [cabeça, tórax, abdômen, braço, perna] */
 const VIT={1:[3,5,4,2,3],2:[3,5,4,2,3],3:[4,6,5,3,4],4:[5,7,6,3,5],5:[5,8,7,4,6],6:[6,9,7,4,6],7:[6,10,8,5,7],8:[7,11,9,5,8],9:[8,12,10,6,9],10:[9,13,11,6,10],11:[10,14,12,7,11],12:[11,15,13,8,12],13:[12,16,14,8,13],14:[13,17,15,9,14],15:[14,18,16,9,15],16:[15,19,17,10,16],17:[16,20,18,10,17],18:[17,21,19,11,18],19:[18,22,20,11,19],20:[19,23,21,12,20]};
-const TILES=[['and','Andar',1],['dis','Disparar',0],['md','Mod. de Dano',1],['mxp','Mod. de XP',0],['cura','Taxa de Cura',0],['ini','Bônus de Iniciativa',0,1],['sor','Pts. de Sorte',1]];
+const TILES=[['and','Andar',1],['dis','Disparar',0],['md','Mod. de Dano',1],['dur','Dureza de Corpo',1],['mxp','Mod. de XP',0],['cura','Taxa de Cura',0],['ini','Bônus de Iniciativa',0,1],['sor','Pts. de Sorte',1]];
 const LIMBS=[['cab','Cabeça',0],['tor','Tórax',1],['abd','Abdômen',2],['bd','Braço direito',3],['be','Braço esquerdo',3],['pd','Perna direita',4],['pe','Perna esquerda',4]];
 
 
@@ -399,7 +400,7 @@ async function sheet(id,sec){
     {const ve=app.querySelector('[data-s=vit]'),vc=tm-n(S.dvit);if(document.activeElement!==ve)ve.value=vc;ve.classList.toggle('neg',vc<0);$('#vit_m').textContent=tm;$('#vit_b').style.width=Math.max(0,Math.min(100,vc/tm*100))+'%'}
     const aT=n(S.and)+n(S.andx);
     Object.entries({dis:2*aT,mxp:Math.floor(A('car')/2),cura:Math.floor((A('con')+A('tam'))/2),ini:A('des')}).forEach(([k,v])=>{$('#tl_'+k).textContent=v;$('#tt_'+k).textContent=v+n(S[k+'x'])});
-    ['and','md','sor'].forEach(k=>$('#tt_'+k).textContent=n(S[k])+n(S[k+'x']));
+    ['and','md','dur','sor'].forEach(k=>$('#tt_'+k).textContent=n(S[k])+n(S[k+'x']));
     const cu=['cl','cm','cp','cv','dl','dm','dp','dv','sr','si','sp'].reduce((a,k)=>a+n(S.cb[k]),0),cr=1+Math.floor(S.lvl/2)-cu;
     $('#cpt').textContent=cr;$('#cptt').textContent=1+Math.floor(S.lvl/2);$('#cpt').style.color=cr<0?'#ff6b81':'';
     CB.forEach(([,r])=>r.forEach(([k,,a])=>$('#t_'+k).textContent=n(S.cb[k])+(a?Math.floor(A(a)/2):0)));
