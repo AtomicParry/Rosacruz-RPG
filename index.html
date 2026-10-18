@@ -386,7 +386,7 @@ async function sheet(id,sec){
   $('#cmb').innerHTML=CB.map(([t,r])=>`<div><h3 style="font-size:18px">${t}</h3>${r.map(([k,l,a])=>`<div class="attr" style="grid-template-columns:1fr 60px 40px 44px"><span>${l}${a?` <small class="l" style="display:inline">(+${a.toUpperCase()}/2)</small>`:''}</span>${inp('cb.'+k,'','number')}<b class="ok" id="t_${k}"></b><button class="rb" data-rl="${t}: ${l}" data-rm="t_${k}" title="Rolar 2d12">d12</button></div>`).join('')}</div>`).join('');
 
   /* cálculos */
-  const hp=()=>VIT[Math.min(16,3+Math.max(1,n(S.lvl)))];
+  const hp=()=>VIT[Math.min(16,Math.max(4,A('con')+A('tam')))];
   function calc(){
     S.lvl=Math.max(1,n(S.lvl));
     $('#hn').textContent=S.nome||'Sem nome';$('#hs').textContent='Nível '+S.lvl+(S.funcao?', '+S.funcao:'');$('#xpt').textContent=`(${n(S.xp)}/${5*S.lvl})`;$('#xpb').style.width=Math.min(100,n(S.xp)/(5*S.lvl)*100)+'%';
