@@ -264,7 +264,7 @@ async function sheet(id,sec){
     const used=ATTR.reduce((s,[k])=>s+A(k),0),left=15-used;$('#pts').textContent=left;$('#pts').style.color=left<0?'#ff6b81':'';
     const su=Object.values(S.sk).reduce((s,v)=>s+n(v),0),sl=20+A('int')-su;$('#spt').textContent=sl;$('#spt').style.color=sl<0?'#ff6b81':'';
     const h=hp();let tc=0,tm=0;
-    LIMBS.forEach(([k,,i])=>{const cur=h[i]-n(S.hp[k]),e=app.querySelector(`[data-hp=${k}]`);if(document.activeElement!==e)e.value=cur;e.classList.toggle('neg',cur<0);const tr=e.closest('tr');tr.classList.toggle('blink',cur<0);tr.classList.toggle('half',cur>=0&&cur<=h[i]/2);$('#hm_'+k).textContent=h[i];$('#hb_'+k).style.width=Math.max(0,Math.min(100,cur/h[i]*100))+'%';tc+=cur;tm+=h[i]});
+    LIMBS.forEach(([k,,i])=>{const cur=h[i]-n(S.hp[k]),e=app.querySelector(`[data-hp=${k}]`);if(document.activeElement!==e)e.value=cur;e.classList.toggle('neg',cur<0);const tr=e.closest('tr');tr.classList.toggle('blink',cur<0&&cur>-h[i]/2);tr.classList.toggle('half',cur<=-h[i]/2);$('#hm_'+k).textContent=h[i];$('#hb_'+k).style.width=Math.max(0,Math.min(100,cur/h[i]*100))+'%';tc+=cur;tm+=h[i]});
     $('#vit_c').textContent=tc;$('#vit_c').classList.toggle('neg',tc<0);$('#vit_m').textContent=tm;$('#vit_b').style.width=Math.max(0,Math.min(100,tc/tm*100))+'%';
     CB.forEach(([,r])=>r.forEach(([k,,a])=>$('#t_'+k).textContent=n(S.cb[k])+(a?Math.floor(A(a)/2):0)));
     const b1=7+A('des')+A('con')+n(S.cb.arm),b2=A('des'),b3=A('con');
