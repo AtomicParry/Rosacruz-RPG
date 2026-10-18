@@ -27,7 +27,7 @@ button:hover{filter:brightness(1.15)}
 .hub{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:40px}
 .door{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--rose);padding:34px 22px;text-align:left;border-radius:3px}
 .door h2{font-size:30px}.door span{color:var(--mut);font-size:13px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:3px;cursor:pointer;overflow:hidden;position:relative}
 .card .ph{aspect-ratio:3/4;background:#0b0c0e center/cover;display:grid;place-items:center;color:var(--mut);font-size:40px}
 .card b{display:block;padding:9px 11px;font-family:'Cormorant Garamond',serif;font-size:19px}
@@ -100,6 +100,7 @@ td input[type=number]{width:70px}
 textarea{word-break:break-word}
 .box{padding:18px}
 .f{gap:12px}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;padding:0 11px 11px;color:var(--mut);font-size:13px}.meta span:last-child,.meta span:nth-child(4){color:var(--brass)}
 </style>
 </head>
 <body>
@@ -147,14 +148,17 @@ function loginView(){
   $('#in').onclick=()=>go(signInWithEmailAndPassword);
   $('#up').onclick=()=>go(createUserWithEmailAndPassword);
 }
-onAuthStateChanged(auth,u=>{user=u; u?hub():loginView()});
+onAuthStateChanged(auth,async u=>{user=u;
+  if(u){try{admin=(await getDoc(doc(db,'admins',u.uid))).exists()}catch(e){admin=false}
+    admin?sessionStorage.setItem('adm','1'):sessionStorage.removeItem('adm'); hub()}
+  else{admin=false;loginView()}});
 
 /* ---------- ADMIN ---------- */
-const ADMIN_PASS='mestrefraco';
-function toggleAdmin(){
-  if(admin){admin=false;sessionStorage.removeItem('adm');return hub()}
+async function toggleAdmin(){
+  const ref=doc(db,'admins',user.uid);
+  if(admin){try{await deleteDoc(ref)}catch(e){} admin=false;sessionStorage.removeItem('adm');return hub()}
   const n=prompt('Senha de admin:'); if(n===null) return;
-  if(n!==ADMIN_PASS) return alert('Senha incorreta.');
+  try{await setDoc(ref,{code:n})}catch(e){return alert('Senha incorreta.')}
   admin=true; sessionStorage.setItem('adm','1'); hub();
 }
 
@@ -173,11 +177,11 @@ async function list(sec){
   if(sec==='npc'&&!admin) return hub();
   app.innerHTML=`<div class="wrap">${top(1)}<h2>${SECS[sec][0]}</h2><br><div class="grid" id="g">Carregando…</div></div>`;
   topBind(hub);
-  const snap=await getDocs(query(collection(db,'fichas'),where('sec','==',sec)));
+  const snap=await getDocs(admin?query(collection(db,'fichas'),where('sec','==',sec)):query(collection(db,'fichas'),where('sec','==',sec),where('owner','==',user.uid)));
   const g=$('#g'); g.innerHTML='<div class="card new" id="nw"><span>+ Nova ficha</span></div>';
   snap.forEach(d=>{const v=d.data(),s=v.s||{};
     const c=document.createElement('div');c.className='card';
-    c.innerHTML=`<div class="ph" style="${s.foto?`background-image:url(${s.foto})`:''}">${s.foto?'':'?'}</div><b>${esc(s.nome||'Sem nome')}</b>${(admin||v.owner===user.uid)?'<button class="x" title="Excluir">×</button>':''}`;
+    c.innerHTML=`<div class="ph" style="${s.foto?`background-image:url(${s.foto})`:''}">${s.foto?'':'?'}</div><b>${esc(s.nome||'Sem nome')}</b><div class="meta"><span>Idade ${esc(s.idade||'-')}</span><span>Rank ${esc(s.rank||'-')}</span><span>Nível ${esc(s.lvl||1)}</span><span>${esc(s.funcao||'Sem função')}</span></div>${(admin||v.owner===user.uid)?'<button class="x" title="Excluir">×</button>':''}`;
     c.onclick=()=>sheet(d.id,sec);
     const x=c.querySelector('.x'); if(x)x.onclick=async e=>{e.stopPropagation();if(confirm('Excluir esta ficha?')){await deleteDoc(doc(db,'fichas',d.id));list(sec)}};
     g.appendChild(c)});
