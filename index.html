@@ -101,6 +101,21 @@ textarea{word-break:break-word}
 .box{padding:18px}
 .f{gap:12px}
 .meta{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;padding:0 11px 11px;color:var(--mut);font-size:13px}.meta span:last-child,.meta span:nth-child(4){color:var(--brass)}
+
+@keyframes pisca{0%,100%{opacity:1}50%{opacity:.2}}
+tr.blink td{background:#b5334a22}
+tr.blink td:first-child,tr.blink input,tr.blink td:nth-child(2){color:#ff4d63;font-weight:700;animation:pisca 1s steps(2,start) infinite}
+tr.blink .bar i{background:#ff4d63}
+tr.half td:first-child,tr.half td:nth-child(2),tr.half input{color:#fff;font-weight:700}
+tr.half .bar i{background:#fff}
+@media(prefers-reduced-motion:reduce){tr.blink *{animation:none!important}}
+#pw{display:grid;gap:12px}
+#inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
+.pcard{background:#0f1114;border:1px solid var(--line);border-left:3px solid var(--rose);border-radius:3px;padding:12px;display:grid;gap:8px}
+.ph2{display:flex;gap:8px;align-items:center}
+.pn{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:2px 0}
+.qty{display:flex;align-items:center;gap:6px}.qty input{width:64px;text-align:center}.qty small{color:var(--mut);margin-left:4px}
+.pcard textarea{background:#0b0c0e}
 </style>
 </head>
 <body>
@@ -224,8 +239,8 @@ async function sheet(id,sec){
   </main></div></div>
 
   <div class="tab hide" data-p="1"><textarea class="auto" data-k="nt" placeholder="Pistas, teorias, nomes, lugares…" ${can?'':'disabled'}>${esc(S.nt)}</textarea></div>
-  <div class="tab hide" data-p="2"><div class="box"><div id="pw"></div><button id="apw" ${can?'':'disabled'}>+ Poder</button></div></div>
-  <div class="tab hide" data-p="3"><div class="box"><div id="inv"></div><button id="ainv" ${can?'':'disabled'}>+ Item</button></div></div></div>`;
+  <div class="tab hide" data-p="2"><div class="box"><h3>Poderes</h3><div id="pw"></div><button id="apw" style="margin-top:12px" ${can?'':'disabled'}>+ Novo poder</button></div></div>
+  <div class="tab hide" data-p="3"><div class="box"><h3>Inventário</h3><div id="inv"></div><button id="ainv" style="margin-top:12px" ${can?'':'disabled'}>+ Novo item</button></div></div></div>`;
   topBind(()=>list(sec));
 
   /* abas */
@@ -249,7 +264,7 @@ async function sheet(id,sec){
     const used=ATTR.reduce((s,[k])=>s+A(k),0),left=15-used;$('#pts').textContent=left;$('#pts').style.color=left<0?'#ff6b81':'';
     const su=Object.values(S.sk).reduce((s,v)=>s+n(v),0),sl=20+A('int')-su;$('#spt').textContent=sl;$('#spt').style.color=sl<0?'#ff6b81':'';
     const h=hp();let tc=0,tm=0;
-    LIMBS.forEach(([k,,i])=>{const cur=h[i]-n(S.hp[k]),e=app.querySelector(`[data-hp=${k}]`);if(document.activeElement!==e)e.value=cur;e.classList.toggle('neg',cur<0);$('#hm_'+k).textContent=h[i];$('#hb_'+k).style.width=Math.max(0,Math.min(100,cur/h[i]*100))+'%';tc+=cur;tm+=h[i]});
+    LIMBS.forEach(([k,,i])=>{const cur=h[i]-n(S.hp[k]),e=app.querySelector(`[data-hp=${k}]`);if(document.activeElement!==e)e.value=cur;e.classList.toggle('neg',cur<0);const tr=e.closest('tr');tr.classList.toggle('blink',cur<0);tr.classList.toggle('half',cur>=0&&cur<=h[i]/2);$('#hm_'+k).textContent=h[i];$('#hb_'+k).style.width=Math.max(0,Math.min(100,cur/h[i]*100))+'%';tc+=cur;tm+=h[i]});
     $('#vit_c').textContent=tc;$('#vit_c').classList.toggle('neg',tc<0);$('#vit_m').textContent=tm;$('#vit_b').style.width=Math.max(0,Math.min(100,tc/tm*100))+'%';
     CB.forEach(([,r])=>r.forEach(([k,,a])=>$('#t_'+k).textContent=n(S.cb[k])+(a?Math.floor(A(a)/2):0)));
     const b1=7+A('des')+A('con')+n(S.cb.arm),b2=A('des'),b3=A('con');
@@ -263,8 +278,10 @@ async function sheet(id,sec){
   /* listas */
   const gr=e=>{e.style.height='auto';e.style.height=(e.scrollHeight+e.offsetHeight-e.clientHeight)+'px'};const growAll=()=>app.querySelectorAll('textarea.grow').forEach(gr);
   const lists=()=>{
-    $('#pw').innerHTML=S.pw.map((p,i)=>`<div class="item p"><input data-l="pw" data-i="${i}" data-f="n" placeholder="Poder" value="${esc(p.n)}"><textarea class="grow" rows="1" data-l="pw" data-i="${i}" data-f="d" placeholder="Descrição / custo">${esc(p.d)}</textarea><button class="g" data-r="pw" data-i="${i}">×</button></div>`).join('')||'<p class="l">Nenhum poder ainda.</p>';
-    $('#inv').innerHTML=S.inv.map((p,i)=>`<div class="item"><input data-l="inv" data-i="${i}" data-f="n" placeholder="Item" value="${esc(p.n)}"><input type="number" data-l="inv" data-i="${i}" data-f="q" placeholder="Qtd" value="${esc(p.q)}"><textarea class="grow" rows="1" data-l="inv" data-i="${i}" data-f="d" placeholder="Descrição">${esc(p.d)}</textarea><button class="g" data-r="inv" data-i="${i}">×</button></div>`).join('')||'<p class="l">Inventário vazio.</p>';
+    const dis=can?'':'disabled';
+    $('#pw').innerHTML=S.pw.map((p,i)=>`<div class="pcard"><div class="ph2"><input class="pn" data-l="pw" data-i="${i}" data-f="n" placeholder="Nome do poder" value="${esc(p.n)}" ${dis}><button class="g sm" data-r="pw" data-i="${i}" title="Remover" ${dis}>×</button></div><textarea class="grow" rows="2" data-l="pw" data-i="${i}" data-f="d" placeholder="Descrição, custo, alcance…" ${dis}>${esc(p.d)}</textarea></div>`).join('')||'<p class="l">Nenhum poder ainda.</p>';
+    $('#inv').innerHTML=S.inv.map((p,i)=>`<div class="pcard"><div class="ph2"><input class="pn" data-l="inv" data-i="${i}" data-f="n" placeholder="Nome do item" value="${esc(p.n)}" ${dis}><button class="g sm" data-r="inv" data-i="${i}" title="Remover" ${dis}>×</button></div><div class="qty"><button class="g sm" data-q="${i}" data-d="-1" ${dis}>−</button><input type="number" data-l="inv" data-i="${i}" data-f="q" value="${esc(p.q)}" ${dis}><button class="g sm" data-q="${i}" data-d="1" ${dis}>+</button><small>quantidade</small></div><textarea class="grow" rows="2" data-l="inv" data-i="${i}" data-f="d" placeholder="Descrição, peso, efeito…" ${dis}>${esc(p.d)}</textarea></div>`).join('')||'<p class="l" style="grid-column:1/-1">Inventário vazio.</p>';
+    app.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const it=S.inv[b.dataset.q];it.q=Math.max(0,n(it.q)+n(b.dataset.d));lists();save()});
     growAll();app.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{S[b.dataset.r].splice(b.dataset.i,1);lists();save()});
   };
   $('#apw').onclick=()=>{S.pw.push({n:'',d:''});lists();save()};
