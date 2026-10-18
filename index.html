@@ -114,6 +114,7 @@ tr.blink .bar i{background:#ff4d63}
 .pn{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:2px 0}
 .qty{display:flex;align-items:center;gap:6px}.qty input{width:64px;text-align:center}.qty small{color:var(--mut);margin-left:4px}
 .pcard textarea{background:#0b0c0e}
+.card.lock{cursor:default}.card.lock:hover{filter:none}
 </style>
 </head>
 <body>
@@ -186,19 +187,24 @@ function hub(){
   ${Object.entries(SECS).filter(([k])=>k!=='npc'||admin).map(([k,[n,d]])=>`<button class="door" data-s="${k}"><h2>${n}</h2><span>${d}</span></button>`).join('')}</div></div>`;
   topBind(); app.querySelectorAll('.door').forEach(b=>b.onclick=()=>list(b.dataset.s));
 }
+const summ=(S,sec,owner)=>({sec,owner,nome:S.nome||'',foto:S.foto||'',idade:S.idade||'',rank:S.rank||'',lvl:parseInt(S.lvl)||1,funcao:S.funcao||''});
 async function list(sec){
   if(sec==='npc'&&!admin) return hub();
   app.innerHTML=`<div class="wrap">${top(1)}<h2>${SECS[sec][0]}</h2><br><div class="grid" id="g">Carregando…</div></div>`;
   topBind(hub);
-  const snap=await getDocs(admin?query(collection(db,'fichas'),where('sec','==',sec)):query(collection(db,'fichas'),where('sec','==',sec),where('owner','==',user.uid)));
+  const cs=await getDocs(query(collection(db,'cards'),where('sec','==',sec)));
+  const cards=new Map();cs.forEach(d=>cards.set(d.id,d.data()));
+  const fs=await getDocs(admin?query(collection(db,'fichas'),where('sec','==',sec)):query(collection(db,'fichas'),where('sec','==',sec),where('owner','==',user.uid)));
+  for(const d of fs.docs){const v=d.data(),c=summ(v.s||{},sec,v.owner);if(!cards.has(d.id))await setDoc(doc(db,'cards',d.id),c);cards.set(d.id,c)}
   const g=$('#g'); g.innerHTML='<div class="card new" id="nw"><span>+ Nova ficha</span></div>';
-  snap.forEach(d=>{const v=d.data(),s=v.s||{};
-    const c=document.createElement('div');c.className='card';
-    c.innerHTML=`<div class="ph" style="${s.foto?`background-image:url(${s.foto})`:''}">${s.foto?'':'?'}</div><b>${esc(s.nome||'Sem nome')}</b><div class="meta"><span>Idade ${esc(s.idade||'-')}</span><span>Rank ${esc(s.rank||'-')}</span><span>Nível ${esc(s.lvl||1)}</span><span>${esc(s.funcao||'Sem função')}</span></div>${(admin||v.owner===user.uid)?'<button class="x" title="Excluir">×</button>':''}`;
-    c.onclick=()=>sheet(d.id,sec);
-    const x=c.querySelector('.x'); if(x)x.onclick=async e=>{e.stopPropagation();if(confirm('Excluir esta ficha?')){await deleteDoc(doc(db,'fichas',d.id));list(sec)}};
+  cards.forEach((v,id)=>{const mine=admin||v.owner===user.uid;
+    const c=document.createElement('div');c.className='card'+(mine?'':' lock');
+    if(!mine)c.title='Somente visualização';
+    c.innerHTML=`<div class="ph" style="${v.foto?`background-image:url(${v.foto})`:''}">${v.foto?'':'?'}</div><b>${esc(v.nome||'Sem nome')}</b><div class="meta"><span>Idade ${esc(v.idade||'-')}</span><span>Rank ${esc(v.rank||'-')}</span><span>Nível ${esc(v.lvl||1)}</span><span>${esc(v.funcao||'Sem função')}</span></div>${mine?'<button class="x" title="Excluir">×</button>':''}`;
+    if(mine)c.onclick=()=>sheet(id,sec);
+    const x=c.querySelector('.x'); if(x)x.onclick=async e=>{e.stopPropagation();if(confirm('Excluir esta ficha?')){await deleteDoc(doc(db,'fichas',id));await deleteDoc(doc(db,'cards',id));list(sec)}};
     g.appendChild(c)});
-  $('#nw').onclick=async()=>{const r=await addDoc(collection(db,'fichas'),{sec,owner:user.uid,s:{nome:'Novo personagem',lvl:1,xp:0,a:{},sk:{},cb:{},hp:{},pw:[],inv:[],nt:''}});sheet(r.id,sec)};
+  $('#nw').onclick=async()=>{const S0={nome:'Novo personagem',lvl:1,xp:0,a:{},sk:{},cb:{},hp:{},pw:[],inv:[],nt:''};const r=await addDoc(collection(db,'fichas'),{sec,owner:user.uid,s:S0});await setDoc(doc(db,'cards',r.id),summ(S0,sec,user.uid));sheet(r.id,sec)};
 }
 
 /* ---------- FICHA ---------- */
@@ -207,7 +213,7 @@ async function sheet(id,sec){
   S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.lvl=S.lvl||1;S.xp=S.xp||0;
   const can=admin||snap.data().owner===user.uid;
   const n=v=>parseInt(v)||0, A=k=>n(S.a[k]);
-  let t;const save=()=>{clearTimeout(t);t=setTimeout(()=>updateDoc(doc(db,'fichas',id),{s:S}),600)};
+  let t;const save=()=>{clearTimeout(t);t=setTimeout(async()=>{await updateDoc(doc(db,'fichas',id),{s:S});await setDoc(doc(db,'cards',id),summ(S,sec,snap.data().owner))},600)};
   const inp=(path,ph,type)=>`<input data-k="${path}" type="${type||'text'}" value="${esc(path.split('.').reduce((o,k)=>o?.[k],S))}" ${can?'':'disabled'}>`;
 
   app.innerHTML=`<div class="wrap">${top(1)}
