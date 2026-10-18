@@ -357,7 +357,7 @@ async function sheet(id,sec){
       <div><label>XP <span id="xpt"></span></label>${inp('xp','','number')}<div class="xpbar"><i id="xpb"></i></div></div></div></div>
     <div class="box"><h3>Perícias</h3><div class="l" style="margin-bottom:8px">Pontos restantes: <b id="spt" class="ok"></b> (20 + INT + 2 por nível)</div>
       <div class="sk">${SKILLS.map(s=>`<div><span>${s}</span>${inp('sk.'+s,'','number')}<button class="rb" data-rl="${s}" data-rk="${s}" title="Rolar 2d12">d12</button></div>`).join('')}</div></div>
-    <div class="box"><h3>Combate</h3><div style="margin-bottom:10px"><button id="loc">Rolar local de acerto (1d7)</button> <b id="locr" class="ok" style="margin-left:8px;font-size:18px"></b></div><div class="l" style="margin-bottom:8px">Pontos de combate restantes: <b id="cpt" class="ok"></b> de <span id="cptt"></span> (1 a cada 2 níveis)</div><div class="f" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))" id="cmb"></div></div>
+    <div class="box"><h3>Combate</h3><div style="margin-bottom:10px"><button id="loc">Rolar local de acerto (1d7)</button> <b id="locr" class="ok" style="margin-left:8px;font-size:18px"></b></div><div class="l" style="margin-bottom:8px">Pontos de combate restantes: <b id="cpt" class="ok"></b> de <span id="cptt"></span> (3 iniciais + 1 a cada 2 níveis)</div><div class="f" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))" id="cmb"></div></div>
     <div class="box"><h3>Reações</h3><div class="f" style="max-width:190px;margin-bottom:10px"><div><label>Armadura (entra na CA)</label>${inp('cb.arm','','number')}</div></div>
       <table><thead><tr><th style="text-align:left">Reação</th><th>Base</th><th>Outro</th><th>Total</th></tr></thead><tbody>
       <tr><td style="text-align:left">Esquiva <small>7+DES+CON+Armadura</small></td><td id="r1b"></td><td>${inp('cb.eo','','number')}</td><td class="ok" id="r1t"></td></tr>
@@ -399,8 +399,8 @@ async function sheet(id,sec){
     const aT=n(S.and)+n(S.andx);
     Object.entries({dis:2*aT,mxp:Math.floor(A('car')/2),cura:Math.floor((A('con')+A('tam'))/2),ini:A('des')}).forEach(([k,v])=>{$('#tl_'+k).textContent=v;$('#tt_'+k).textContent=v+n(S[k+'x'])});
     ['and','md','sor'].forEach(k=>$('#tt_'+k).textContent=n(S[k])+n(S[k+'x']));
-    const cu=['cl','cm','cp','cv','dl','dm','dp','dv','sr','si','sp'].reduce((a,k)=>a+n(S.cb[k]),0),cr=Math.floor(S.lvl/2)-cu;
-    $('#cpt').textContent=cr;$('#cptt').textContent=Math.floor(S.lvl/2);$('#cpt').style.color=cr<0?'#ff6b81':'';
+    const cu=['cl','cm','cp','cv','dl','dm','dp','dv','sr','si','sp'].reduce((a,k)=>a+n(S.cb[k]),0),cr=3+Math.floor(S.lvl/2)-cu;
+    $('#cpt').textContent=cr;$('#cptt').textContent=3+Math.floor(S.lvl/2);$('#cpt').style.color=cr<0?'#ff6b81':'';
     CB.forEach(([,r])=>r.forEach(([k,,a])=>$('#t_'+k).textContent=n(S.cb[k])+(a?Math.floor(A(a)/2):0)));
     const b1=7+A('des')+A('con')+n(S.cb.arm),b2=A('des'),b3=A('con');
     $('#r1b').textContent=b1;$('#r1t').textContent=b1+n(S.cb.eo);$('#r2b').textContent=b2;$('#r2t').textContent=b2+n(S.cb.lo);$('#r3b').textContent=b3;$('#r3t').textContent=b3+n(S.cb.out);
