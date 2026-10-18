@@ -111,17 +111,12 @@ function loginView(){
 onAuthStateChanged(auth,u=>{user=u; u?hub():loginView()});
 
 /* ---------- ADMIN ---------- */
-async function toggleAdmin(){
+const ADMIN_PASS='mestrefraco';
+function toggleAdmin(){
   if(admin){admin=false;sessionStorage.removeItem('adm');return hub()}
-  const ref=doc(db,'config','admin'),snap=await getDoc(ref);
-  if(!snap.exists()){
-    const n=prompt('Ainda não existe senha de admin. Defina uma:');
-    if(!n) return; await setDoc(ref,{code:n}); admin=true;
-  }else{
-    const n=prompt('Senha de admin:'); if(n===null) return;
-    if(n!==snap.data().code) return alert('Senha incorreta.'); admin=true;
-  }
-  sessionStorage.setItem('adm','1'); hub();
+  const n=prompt('Senha de admin:'); if(n===null) return;
+  if(n!==ADMIN_PASS) return alert('Senha incorreta.');
+  admin=true; sessionStorage.setItem('adm','1'); hub();
 }
 
 /* ---------- LAYOUT / HUB / LISTAS ---------- */
