@@ -143,6 +143,16 @@ textarea.grow,textarea.auto{field-sizing:content;overflow:hidden;box-sizing:bord
 .rt{margin-left:auto;font-family:'Cormorant Garamond',serif;font-size:28px}
 @keyframes rolar{from{transform:rotate(-200deg) scale(.4);opacity:0}to{transform:none;opacity:1}}
 #dlog .rl:first-child .rd i{animation:rolar .5s}
+
+.dpan{position:fixed;top:0;right:0;bottom:0;width:min(430px,100vw);max-height:none;border-radius:0;border-top:0;border-left:2px solid var(--rose)}
+#dlog{flex:1;min-height:0}
+.dh2 span{display:flex;gap:6px}
+.rd2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.dv{display:grid;justify-items:center;gap:3px;padding:8px 4px;border:1px solid var(--line);border-radius:4px;opacity:.65}
+.dv small{color:var(--mut);font-size:11px}
+.dv.win{opacity:1}.dv.h.win{border-color:#f2c230}.dv.f.win{border-color:#7c4dff}
+.dv i{width:38px!important;height:38px!important;font-size:18px}
+.rres{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;border-top:1px dotted var(--line);padding-top:6px;color:var(--mut)}
 </style>
 </head>
 <body>
@@ -158,7 +168,7 @@ const firebaseConfig = {
 /* ============================================================== */
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,collection,query,where,getDocs,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,orderBy,limit,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,collection,query,where,getDocs,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,orderBy,limit,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const fb=initializeApp(firebaseConfig),auth=getAuth(fb),db=getFirestore(fb);
 const $=s=>document.querySelector(s), app=$('#app');
@@ -179,22 +189,34 @@ let unsub=null;
 const rnd=()=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%12+1};
 async function rollDice(label,mod,who){
   mod=parseInt(mod)||0;const h=rnd(),f=rnd();
-  $('#dpan')?.classList.remove('hide');
-  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,total:h+f+mod,t:serverTimestamp()})}
+  setPan(true);
+  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,total:Math.max(h,f)+mod,t:serverTimestamp()})}
   catch(e){alert('Não foi possível registrar a rolagem.')}
+}
+const setPan=o=>{$('#dpan')?.classList.toggle('hide',!o);const t=$('#dtog');if(t)t.style.display=o?'none':''};
+const diceAdmin=()=>{$('#dclr')?.classList.toggle('hide',!admin)};
+async function clearRolls(){
+  if(!admin||!confirm('Apagar todas as rolagens para todos os jogadores?'))return;
+  try{const sn=await getDocs(collection(db,'rolls'));let b=writeBatch(db),c=0;
+    for(const d of sn.docs){b.delete(d.ref);if(++c%400===0){await b.commit();b=writeBatch(db)}}
+    await b.commit()}catch(e){alert('Não foi possível limpar as rolagens.')}
 }
 function diceInit(){
   if($('#dice'))return;
   const d=document.createElement('div');d.id='dice';
-  d.innerHTML=`<div id="dpan" class="dpan hide"><div class="dh2"><b>Rolagens da mesa</b><button class="g sm" id="dx">×</button></div>
+  d.innerHTML=`<div id="dpan" class="dpan hide"><div class="dh2"><b>Rolagens da mesa</b><span><button class="g sm hide" id="dclr">Limpar</button> <button class="g sm" id="dx">×</button></span></div>
   <div class="dform"><input id="dl" placeholder="Teste (opcional)"><input id="dm" type="number" placeholder="Bônus"><button id="dgo">Rolar 2d12</button></div>
-  <div class="dleg"><i class="dh">E</i> Esperança <i class="df">M</i> Medo</div><div id="dlog"></div></div><button id="dtog" class="dtog">Dados</button>`;
+  <div class="dleg"><i class="dh">E</i> Esperança <i class="df">M</i> Medo. O resultado é o maior dado somado ao bônus.</div><div id="dlog"></div></div><button id="dtog" class="dtog">Dados</button>`;
   document.body.appendChild(d);
-  $('#dtog').onclick=()=>$('#dpan').classList.toggle('hide');$('#dx').onclick=()=>$('#dpan').classList.add('hide');
+  $('#dtog').onclick=()=>setPan(true);$('#dx').onclick=()=>setPan(false);$('#dclr').onclick=clearRolls;diceAdmin();
   $('#dgo').onclick=()=>rollDice($('#dl').value,$('#dm').value);
   unsub=onSnapshot(query(collection(db,'rolls'),orderBy('t','desc'),limit(40)),snap=>{
     $('#dlog').innerHTML=snap.docs.map(x=>{const v=x.data({serverTimestamps:'estimate'}),tm=v.t?.toDate?.().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})||'';
-      return `<div class="rl"><div class="rw"><b>${esc(v.who)}</b><span>${esc(v.label)} ${tm}</span></div><div class="rd"><i class="dh">${v.h}</i><i class="df">${v.f}</i><span>${v.mod>=0?'+':'−'} ${Math.abs(v.mod)}</span><b class="rt">${v.total}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
+      const hv=v.h+v.mod,fv=v.f+v.mod,res=Math.max(hv,fv),w=hv>fv?'Esperança':fv>hv?'Medo':'Empate',sg=v.mod>=0?'+':'−',m=Math.abs(v.mod);
+      return `<div class="rl"><div class="rw"><b>${esc(v.who)}</b><span>${esc(v.label)} ${tm}</span></div>
+        <div class="rd2"><div class="dv h${hv>=fv?' win':''}"><i class="dh">${v.h}</i><small>Esperança</small><span>${sg} ${m} = <b>${hv}</b></span></div>
+        <div class="dv f${fv>=hv?' win':''}"><i class="df">${v.f}</i><small>Medo</small><span>${sg} ${m} = <b>${fv}</b></span></div></div>
+        <div class="rres"><span>Resultado (${w})</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
 }
 function diceOff(){unsub&&unsub();unsub=null;$('#dice')?.remove()}
 
@@ -235,7 +257,7 @@ ${back?'<button class="g" id="bk">Voltar</button> ':''}
 <button class="g" id="adm">${admin?'Sair do modo admin':'Modo admin'}</button>
 <button class="g" id="out">Sair (${esc(localStorage.getItem('nick')||'')})</button></div></div>`;
 function topBind(back){ $('#adm').onclick=toggleAdmin; $('#out').onclick=()=>signOut(auth); if(back)$('#bk').onclick=back }
-function hub(){
+function hub(){ diceAdmin();
   app.innerHTML=`<div class="wrap">${top()}<h2>Escolha um arquivo</h2><div class="hub">
   ${Object.entries(SECS).filter(([k])=>k!=='npc'||admin).map(([k,[n,d]])=>`<button class="door" data-s="${k}"><h2>${n}</h2><span>${d}</span></button>`).join('')}</div></div>`;
   topBind(); app.querySelectorAll('.door').forEach(b=>b.onclick=()=>list(b.dataset.s));
