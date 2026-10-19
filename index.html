@@ -189,6 +189,9 @@ textarea.hist{min-height:60vh;width:100%;line-height:1.6}
 tr.dead td{opacity:.32;filter:grayscale(1)}
 tr.dead td:first-child{text-decoration:line-through}
 .t_dur{background:linear-gradient(135deg,#3a3a40,#1a1d21)}
+@keyframes brilho{0%,100%{box-shadow:0 0 0 #f2c23000}50%{box-shadow:0 0 14px #f2c23099}}
+.rl.crit{border-left-color:#f2c230;background:linear-gradient(135deg,#3a2f0e,#0f1114);animation:brilho 1.4s ease-in-out 3}
+.cb{color:#f2c230;letter-spacing:.08em;font-size:14px}
 </style>
 </head>
 <body>
@@ -256,11 +259,11 @@ function diceInit(){
   unsub=onSnapshot(query(collection(db,'rolls'),orderBy('t','desc'),limit(40)),snap=>{
     $('#dlog').innerHTML=snap.docs.map(x=>{const v=x.data({serverTimestamps:'estimate'}),tm=v.t?.toDate?.().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})||'';
       if(v.loc)return `<div class="rl"><div class="rw"><b>${esc(v.who)}</b><span>Local de acerto (1d7) ${tm}</span></div><div class="rres"><span>Dado: ${v.loc}</span><b class="rt" style="font-size:22px">${esc(v.locName)}</b></div></div>`;
-      const hv=v.h+v.mod,fv=v.f+v.mod,res=Math.max(hv,fv),w=hv>fv?'Esperança':fv>hv?'Medo':'Empate',sg=v.mod>=0?'+':'−',m=Math.abs(v.mod);
-      return `<div class="rl"><div class="rw"><b>${esc(v.who)}</b><span>${esc(v.label)} ${tm}</span></div>
+      const hv=v.h+v.mod,fv=v.f+v.mod,res=Math.max(hv,fv),w=hv>fv?'Esperança':'Medo',crit=v.h===v.f,sg=v.mod>=0?'+':'−',m=Math.abs(v.mod);
+      return `<div class="rl${crit?' crit':''}"><div class="rw"><b>${esc(v.who)}</b><span>${esc(v.label)} ${tm}</span></div>
         <div class="rd2"><div class="dv h${hv>=fv?' win':''}"><i class="dh">${v.h}</i><small>Esperança</small><span>${sg} ${m} = <b>${hv}</b></span></div>
         <div class="dv f${fv>=hv?' win':''}"><i class="df">${v.f}</i><small>Medo</small><span>${sg} ${m} = <b>${fv}</b></span></div></div>
-        <div class="rres"><span>Resultado (${w})</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
+        <div class="rres"><span>${crit?'<b class="cb">SUCESSO CRÍTICO!</b>':`Resultado (${w})`}</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
 }
 function diceOff(){unsub&&unsub();unsub=null;$('#dice')?.remove()}
 
