@@ -192,6 +192,8 @@ tr.dead td:first-child{text-decoration:line-through}
 @keyframes brilho{0%,100%{box-shadow:0 0 0 #f2c23000}50%{box-shadow:0 0 14px #f2c23099}}
 .rl.crit{border-left-color:#f2c230;background:linear-gradient(135deg,#3a2f0e,#0f1114);animation:brilho 1.4s ease-in-out 3}
 .cb{color:#f2c230;letter-spacing:.08em;font-size:14px}
+.st>div:nth-child(2){background:linear-gradient(135deg,#4a1822,#12161d);border-top:2px solid var(--rose)}
+.st>div:nth-child(3){background:linear-gradient(135deg,#463a12,#12161d);border-top:2px solid #f2c230}
 </style>
 </head>
 <body>
@@ -232,6 +234,7 @@ async function rollDice(label,mod,who){
   setPan(true);
   try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,total:Math.max(h,f)+mod,t:serverTimestamp()})}
   catch(e){alert('Não foi possível registrar a rolagem.')}
+  return {h,f};
 }
 const setPan=o=>{$('#dpan')?.classList.toggle('hide',!o);const t=$('#dtog');if(t)t.style.display=o?'none':''};
 const diceAdmin=()=>{$('#dclr')?.classList.toggle('hide',!admin)};
@@ -352,7 +355,7 @@ async function sheet(id,sec){
       <div class="ag">${ATTR.map(([k,l])=>`<div><label>${l}</label>${inp('a.'+k,'','number')}</div>`).join('')}</div></div>
   </aside><main>
     <div class="box"><h3>Status</h3><div class="st">
-      ${[['san','Sanidade','10 + INT + POD'],['ene','Energia','10 + FOR + CON'],['vit','Vitalidade','CON + TAM: soma das partes']].map(([k,l,h])=>`<div><label class="l">${l}</label><div class="cv"><input class="cur" type="number" data-s="${k}" ${can?'':'disabled'}><span>/ <b id="${k}_m"></b></span></div><div class="bar"><i id="${k}_b"></i></div></div>`).join('')}<div><label class="l">Esperança</label><div class="cv"><input class="cur" type="number" data-k="esp" value="${esc(S.esp)}" ${can?'':'disabled'}></div></div></div>
+      ${[['san','Sanidade','10 + INT + POD'],['vit','Vitalidade','CON + TAM: soma das partes']].map(([k,l,h])=>`<div><label class="l">${l}</label><div class="cv"><input class="cur" type="number" data-s="${k}" ${can?'':'disabled'}><span>/ <b id="${k}_m"></b></span></div><div class="bar"><i id="${k}_b"></i></div></div>`).join('')}<div><label class="l">Esperança</label><div class="cv"><input class="cur" type="number" data-k="esp" value="${esc(S.esp)}" ${can?'':'disabled'}></div></div></div>
       <table><thead><tr><th>Parte do corpo</th><th>Máx</th><th>Atual</th><th></th></tr></thead><tbody>
       ${LIMBS.map(([k,l])=>`<tr><td>${l}</td><td id="hm_${k}"></td><td><input class="hpi" type="number" data-hp="${k}" ${can?'':'disabled'}><div class="bar"><i id="hb_${k}"></i></div></td><td><button class="sm g" data-h="${k}" data-d="1" ${can?'':'disabled'}>−</button> <button class="sm g" data-h="${k}" data-d="-1" ${can?'':'disabled'}>+</button></td></tr>`).join('')}</tbody></table></div>
     <div class="box"><h3>Modificadores</h3><div class="tg">${TILES.map(([k,l,ed,rl])=>`<div class="tl t_${k}"><div class="tv">${ed?inp(k,'','number'):`<b id="tl_${k}"></b>`}<i>+</i>${inp(k+'x','','number')}</div><small>${l}</small><em>= <b id="tt_${k}"></b>${rl?` <button class="rb" data-rl="Iniciativa" data-rm="tt_${k}" title="Rolar 2d12">d12</button>`:''}</em></div>`).join('')}</div></div>
@@ -395,7 +398,7 @@ async function sheet(id,sec){
   function calc(){
     S.lvl=Math.max(1,n(S.lvl));
     $('#hn').textContent=S.nome||'Sem nome';$('#hs').textContent='Nível '+S.lvl+(S.funcao?', '+S.funcao:'');$('#xpt').textContent=`(${n(S.xp)}/${5*S.lvl})`;$('#xpb').style.width=Math.min(100,n(S.xp)/(5*S.lvl)*100)+'%';
-    ['san','ene'].forEach(k=>{const m=k==='san'?10+A('int')+A('pod'):10+A('for')+A('con'),c=m-n(S['d'+k]),el=app.querySelector(`[data-s=${k}]`);if(el&&document.activeElement!==el)el.value=c;$('#'+k+'_m').textContent=m;el.classList.toggle('neg',c<0);$('#'+k+'_b').style.width=Math.max(0,Math.min(100,c/m*100))+'%'});
+    ['san'].forEach(k=>{const m=k==='san'?10+A('int')+A('pod'):10+A('for')+A('con'),c=m-n(S['d'+k]),el=app.querySelector(`[data-s=${k}]`);if(el&&document.activeElement!==el)el.value=c;$('#'+k+'_m').textContent=m;el.classList.toggle('neg',c<0);$('#'+k+'_b').style.width=Math.max(0,Math.min(100,c/m*100))+'%'});
     const used=ATTR.reduce((s,[k])=>s+A(k),0),left=14+S.lvl-used;$('#ptt').textContent=14+S.lvl;$('#pts').textContent=left;$('#pts').style.color=left<0?'#ff6b81':'';
     const su=Object.values(S.sk).reduce((s,v)=>s+n(v),0),sl=20+A('int')+2*(S.lvl-1)-su;$('#spt').textContent=sl;$('#spt').style.color=sl<0?'#ff6b81':'';
     const h=hp();let tc=0,tm=0;
@@ -429,7 +432,7 @@ async function sheet(id,sec){
   $('#ainv').onclick=()=>{S.inv.push({n:'',q:1,d:''});lists();save()};
   $('#atal').onclick=()=>{S.tal.push({n:'',d:''});lists();save()};
   /* entrada genérica */
-  app.firstElementChild.addEventListener('click',async e=>{if(e.target.closest('#loc')){const d=await rollLoc(S.nome);$('#locr').textContent=d+': '+LOCS[d-1];return}const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome)});
+  app.firstElementChild.addEventListener('click',async e=>{if(e.target.closest('#loc')){const d=await rollLoc(S.nome);$('#locr').textContent=d+': '+LOCS[d-1];return}const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);const rr=await rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome);if(rr&&rr.h>rr.f&&can){S.esp=n(S.esp)+1;const ei=app.querySelector('[data-k=esp]');if(ei)ei.value=S.esp;calc();save()}});
   app.firstElementChild.addEventListener('input',e=>{const el=e.target;
     if(el.dataset.s){const k=el.dataset.s,m=k==='san'?10+A('int')+A('pod'):k==='ene'?10+A('for')+A('con'):vmax();S['d'+k]=m-n(el.value);calc();save();return}
     if(el.dataset.hp){const i=LIMBS.find(x=>x[0]===el.dataset.hp)[2];S.hp[el.dataset.hp]=hp()[i]-n(el.value);calc();save();return}
