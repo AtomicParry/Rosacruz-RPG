@@ -209,7 +209,7 @@ const firebaseConfig = {
 /* ============================================================== */
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,collection,query,where,getDocs,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,orderBy,limit,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,collection,query,where,getDocs,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,orderBy,limit,serverTimestamp,writeBatch,FieldPath,deleteField} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const fb=initializeApp(firebaseConfig),auth=getAuth(fb),db=getFirestore(fb);
 const $=s=>document.querySelector(s), app=$('#app');
@@ -307,13 +307,18 @@ ${back?'<button class="g" id="bk">Voltar</button> ':''}
 <button class="g" id="adm">${admin?'Sair do modo admin':'Modo admin'}</button>
 <button class="g" id="out">Sair (${esc(localStorage.getItem('nick')||'')})</button></div></div>`;
 function topBind(back){ $('#adm').onclick=toggleAdmin; $('#out').onclick=()=>signOut(auth); if(back)$('#bk').onclick=back }
-function hub(){ diceAdmin();
+function hub(){ diceAdmin();stopSheet();
   app.innerHTML=`<div class="wrap">${top()}<h2>Escolha um arquivo</h2><div class="hub">
   ${Object.entries(SECS).filter(([k])=>k!=='npc'||admin).map(([k,[n,d]])=>`<button class="door" data-s="${k}"><h2>${n}</h2><span>${d}</span></button>`).join('')}</div></div>`;
   topBind(); app.querySelectorAll('.door').forEach(b=>b.onclick=()=>list(b.dataset.s));
 }
+const clone=o=>JSON.parse(JSON.stringify(o));
+const LEAF=o=>{const m={};for(const k in o){const v=o[k];if(v&&typeof v==='object'&&!Array.isArray(v)){for(const j in v)m[k+'.'+j]=v[j]}else m[k]=v}return m};
+const setLeaf=(S,k,v)=>{const i=k.indexOf('.');if(i<0){v===undefined?delete S[k]:S[k]=v;return}const a=k.slice(0,i),b=k.slice(i+1);S[a]=S[a]||{};v===undefined?delete S[a][b]:S[a][b]=v};
+let unsubSheet=null;const stopSheet=()=>{unsubSheet&&unsubSheet();unsubSheet=null};
 const summ=(S,sec,owner)=>({sec,owner,nome:S.nome||'',foto:S.foto||'',idade:S.idade||'',rank:S.rank||'',lvl:parseInt(S.lvl)||1,funcao:S.funcao||''});
 async function list(sec){
+  stopSheet();
   if(sec==='npc'&&!admin) return hub();
   app.innerHTML=`<div class="wrap">${top(1)}<h2>${SECS[sec][0]}</h2><br>${sec==='npc'?'<div class="box" id="medo"><h3>Medo</h3><div class="mp"><button class="g" id="mm">−</button><input id="mpts" type="number"><button class="g" id="mp">+</button></div></div>':''}<div class="grid" id="g">Carregando…</div></div>`;
   topBind(hub);
@@ -338,11 +343,16 @@ async function list(sec){
 
 /* ---------- FICHA ---------- */
 async function sheet(id,sec){
-  const snap=await getDoc(doc(db,'fichas',id)); const S=snap.data().s;
+  const snap=await getDoc(doc(db,'fichas',id)); const S=snap.data().s; let base=clone(S);
   S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.lvl=S.lvl||1;S.xp=S.xp||0;if(S.esp==null)S.esp=2;if(S.and==null)S.and=9;S.tal=S.tal||[];if(S.sk.Carga!=null){if(S.sk.Musculatura==null)S.sk.Musculatura=S.sk.Carga;delete S.sk.Carga}
   const can=admin||snap.data().owner===user.uid;
   const n=v=>parseInt(v)||0, A=k=>n(S.a[k]);
-  let t;const save=()=>{clearTimeout(t);t=setTimeout(async()=>{await updateDoc(doc(db,'fichas',id),{s:S});await setDoc(doc(db,'cards',id),summ(S,sec,snap.data().owner))},600)};
+  let t;const save=()=>{clearTimeout(t);t=setTimeout(async()=>{
+    const sl=LEAF(S),bl=LEAF(base),args=[];
+    for(const k of new Set([...Object.keys(sl),...Object.keys(bl)])){if(JSON.stringify(sl[k])!==JSON.stringify(bl[k])){const i=k.indexOf('.');args.push(new FieldPath('s',...(i<0?[k]:[k.slice(0,i),k.slice(i+1)])),sl[k]===undefined?deleteField():sl[k])}}
+    if(!args.length)return;const prev=base;base=clone(S);
+    try{await updateDoc(doc(db,'fichas',id),...args);await setDoc(doc(db,'cards',id),summ(S,sec,snap.data().owner))}catch(e){base=prev;console.error(e)}
+  },600)};
   const inp=(path,ph,type)=>`<input data-k="${path}" type="${type||'text'}" value="${esc(path.split('.').reduce((o,k)=>o?.[k],S))}" ${can?'':'disabled'}>`;
 
   app.innerHTML=`<div class="wrap">${top(1)}
@@ -443,6 +453,21 @@ async function sheet(id,sec){
   app.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{S.hp[b.dataset.h]=n(S.hp[b.dataset.h])+n(b.dataset.d);calc();save()});
   window.onresize=growAll;
   lists();calc();
+  const refresh=()=>{
+    S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.tal=S.tal||[];S.lvl=S.lvl||1;S.xp=S.xp||0;
+    app.querySelectorAll('[data-k]').forEach(el=>{if(el===document.activeElement)return;el.value=el.dataset.k.split('.').reduce((o,k)=>o?.[k],S)??''});
+    showPh();const ae=document.activeElement;if(!(ae&&ae.dataset&&ae.dataset.l))lists();
+    calc();grow();growAll();
+  };
+  stopSheet();
+  unsubSheet=onSnapshot(doc(db,'fichas',id),sn=>{
+    if(!sn.exists()||sn.metadata.hasPendingWrites)return;
+    const R=sn.data().s||{},rl=LEAF(R),bl=LEAF(base),sl=LEAF(S);let ch=false;
+    for(const k of new Set([...Object.keys(rl),...Object.keys(bl)])){
+      if(JSON.stringify(rl[k])!==JSON.stringify(bl[k])&&JSON.stringify(sl[k])===JSON.stringify(bl[k])){setLeaf(S,k,rl[k]);ch=true}
+    }
+    base=clone(R);if(ch)refresh();
+  },()=>{});
 }
 </script>
 </body>
