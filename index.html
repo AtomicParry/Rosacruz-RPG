@@ -247,14 +247,14 @@ function askAdv(label){return new Promise(res=>{
   let sel=0;const o=document.createElement('div');o.className='mo';
   const bt=v=>`<button class="g" data-v="${v}">${v<0?'Desv. '+(-v):v>0?'Vant. '+v:'Normal'}</button>`;
   o.innerHTML=`<div class="mb" role="dialog" aria-modal="true"><h3>Rolar: ${esc(label)}</h3>
-    <p class="l">Escolha vantagem ou desvantagem, de 1 a 5 níveis. Cada nível de vantagem soma 1d6 ao resultado, e cada nível de desvantagem subtrai 1d6.</p>
+    <p class="l">Escolha vantagem ou desvantagem, de 1 a 5 níveis. Nível 1 soma 1d6 ao resultado, e cada nível a mais soma mais 1 (nível 2 = 1d6+1, nível 3 = 1d6+2). A desvantagem funciona igual, mas subtrai.</p>
     <div class="l">Desvantagem</div><div class="ar dn">${[5,4,3,2,1].map(i=>bt(-i)).join('')}</div>
     <div class="l">Vantagem</div><div class="ar up">${[1,2,3,4,5].map(bt).join('')}</div>
     <div class="ar">${bt(0)}</div><div id="advp" class="ok"></div>
     <div class="mr"><button class="g" id="adc">Cancelar</button><button id="ado">Rolar</button></div></div>`;
   document.body.appendChild(o);
   const upd=()=>{o.querySelectorAll('[data-v]').forEach(b=>b.classList.toggle('on',+b.dataset.v===sel));
-    $('#advp').textContent=sel===0?'Rolagem normal, sem dados extras.':(sel>0?'Vantagem '+sel+': soma ':'Desvantagem '+(-sel)+': subtrai ')+Math.abs(sel)+'d6 do resultado.'};
+    $('#advp').textContent=sel===0?'Rolagem normal, sem dados extras.':(sel>0?'Vantagem '+sel+': soma ':'Desvantagem '+(-sel)+': subtrai ')+'1d6'+(Math.abs(sel)>1?'+'+(Math.abs(sel)-1):'')+' do resultado.'};
   const end=v=>{document.removeEventListener('keydown',kd);o.remove();res(v)};
   const kd=e=>{if(e.key==='Escape')end(null)};
   document.addEventListener('keydown',kd);
@@ -262,9 +262,9 @@ function askAdv(label){return new Promise(res=>{
   $('#adc').onclick=()=>end(null);$('#ado').onclick=()=>end(sel);upd();$('#ado').focus();
 })}
 async function rollDice(label,mod,who,adv){
-  mod=parseInt(mod)||0;adv=adv||0;const h=rnd(),f=rnd(),d6=[];for(let i=0;i<Math.abs(adv);i++)d6.push(rnd6());const bonus=(adv<0?-1:1)*d6.reduce((a,b)=>a+b,0);
+  mod=parseInt(mod)||0;adv=adv||0;const h=rnd(),f=rnd(),d6=adv?[rnd6()]:[],flat=adv?Math.abs(adv)-1:0,bonus=(adv<0?-1:1)*(d6.reduce((a,b)=>a+b,0)+flat);
   setPan(true);
-  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,adv,d6,bonus,total:Math.max(h,f)+mod+bonus,t:serverTimestamp()})}
+  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,adv,d6,flat,bonus,total:Math.max(h,f)+mod+bonus,t:serverTimestamp()})}
   catch(e){alert('Não foi possível registrar a rolagem.')}
   return {h,f};
 }
@@ -298,7 +298,7 @@ function diceInit(){
       return `<div class="rl${crit?' crit':''}"><div class="rw"><b>${esc(v.who)}</b><span>${esc(v.label)} ${tm}</span></div>
         <div class="rd2"><div class="dv h${hv>=fv?' win':''}"><i class="dh">${v.h}</i><small>Esperança</small><span>${sg} ${m} = <b>${hv}</b></span></div>
         <div class="dv f${fv>=hv?' win':''}"><i class="df">${v.f}</i><small>Medo</small><span>${sg} ${m} = <b>${fv}</b></span></div></div>
-        ${v.adv?`<div class="adv ${v.adv>0?'up':'dn'}"><span>${v.adv>0?'Vantagem':'Desvantagem'} ${Math.abs(v.adv)}</span>${(v.d6||[]).map(x=>`<i>${x}</i>`).join('')}<b>${v.bonus>=0?'+':'−'} ${Math.abs(v.bonus)}</b></div>`:''}<div class="rres"><span>${crit?'<b class="cb">SUCESSO CRÍTICO!</b>':`Resultado (${w})`}</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
+        ${v.adv?`<div class="adv ${v.adv>0?'up':'dn'}"><span>${v.adv>0?'Vantagem':'Desvantagem'} ${Math.abs(v.adv)}</span>${(v.d6||[]).map(x=>`<i>${x}</i>`).join('')}${v.flat?`<small>${v.adv>0?'+':'−'} ${v.flat}</small>`:''}<b>${v.bonus>=0?'+':'−'} ${Math.abs(v.bonus)}</b></div>`:''}<div class="rres"><span>${crit?'<b class="cb">SUCESSO CRÍTICO!</b>':`Resultado (${w})`}</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
 }
 function diceOff(){unsub&&unsub();unsub=null;$('#dice')?.remove()}
 
