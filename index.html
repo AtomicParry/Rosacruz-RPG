@@ -194,6 +194,19 @@ tr.dead td:first-child{text-decoration:line-through}
 .cb{color:#f2c230;letter-spacing:.08em;font-size:14px}
 .st>div:nth-child(2){background:linear-gradient(135deg,#4a1822,#12161d);border-top:2px solid var(--rose)}
 .st>div:nth-child(3){background:linear-gradient(135deg,#463a12,#12161d);border-top:2px solid #f2c230}
+
+.mo{position:fixed;inset:0;background:#000b;z-index:100;display:grid;place-items:center;padding:16px}
+.mb{background:var(--panel);border:1px solid var(--line);border-top:2px solid var(--rose);border-radius:4px;padding:20px;width:min(480px,100%);display:grid;gap:10px;box-shadow:0 20px 50px #000}
+.mb h3{font-size:26px}
+.ar{display:flex;gap:6px;flex-wrap:wrap}.ar button{flex:1;min-width:64px}
+.ar.up button.on{background:#2f8f5b;border-color:#2f8f5b}.ar.dn button.on{background:#a8323f;border-color:#a8323f}
+.ar>button.on:not(.up *):not(.dn *){background:var(--brass);color:#111;border-color:var(--brass)}
+.mr{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.adv{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px}
+.adv span{color:var(--mut);margin-right:auto}
+.adv i{font-style:normal;width:24px;height:24px;display:grid;place-items:center;border-radius:4px;font-weight:700;font-size:13px}
+.adv.up i{background:#2f8f5b}.adv.dn i{background:#a8323f}
+.adv.up b{color:#5fd493}.adv.dn b{color:#ff7a89}
 </style>
 </head>
 <body>
@@ -229,10 +242,29 @@ const LIMBS=[['cab','Cabeça',0],['tor','Tórax',1],['abd','Abdômen',2],['bd','
 /* ---------- DADOS 2d12 (esperança + medo) ---------- */
 let unsub=null;
 const rnd=()=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%12+1};
-async function rollDice(label,mod,who){
-  mod=parseInt(mod)||0;const h=rnd(),f=rnd();
+const rnd6=()=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%6+1};
+function askAdv(label){return new Promise(res=>{
+  let sel=0;const o=document.createElement('div');o.className='mo';
+  const bt=v=>`<button class="g" data-v="${v}">${v<0?'Desv. '+(-v):v>0?'Vant. '+v:'Normal'}</button>`;
+  o.innerHTML=`<div class="mb" role="dialog" aria-modal="true"><h3>Rolar: ${esc(label)}</h3>
+    <p class="l">Escolha vantagem ou desvantagem, de 1 a 5 níveis. Cada nível de vantagem soma 1d6 ao resultado, e cada nível de desvantagem subtrai 1d6.</p>
+    <div class="l">Desvantagem</div><div class="ar dn">${[5,4,3,2,1].map(i=>bt(-i)).join('')}</div>
+    <div class="l">Vantagem</div><div class="ar up">${[1,2,3,4,5].map(bt).join('')}</div>
+    <div class="ar">${bt(0)}</div><div id="advp" class="ok"></div>
+    <div class="mr"><button class="g" id="adc">Cancelar</button><button id="ado">Rolar</button></div></div>`;
+  document.body.appendChild(o);
+  const upd=()=>{o.querySelectorAll('[data-v]').forEach(b=>b.classList.toggle('on',+b.dataset.v===sel));
+    $('#advp').textContent=sel===0?'Rolagem normal, sem dados extras.':(sel>0?'Vantagem '+sel+': soma ':'Desvantagem '+(-sel)+': subtrai ')+Math.abs(sel)+'d6 do resultado.'};
+  const end=v=>{document.removeEventListener('keydown',kd);o.remove();res(v)};
+  const kd=e=>{if(e.key==='Escape')end(null)};
+  document.addEventListener('keydown',kd);
+  o.addEventListener('click',e=>{if(e.target===o)return end(null);const b=e.target.closest('[data-v]');if(b){sel=+b.dataset.v;upd()}});
+  $('#adc').onclick=()=>end(null);$('#ado').onclick=()=>end(sel);upd();$('#ado').focus();
+})}
+async function rollDice(label,mod,who,adv){
+  mod=parseInt(mod)||0;adv=adv||0;const h=rnd(),f=rnd(),d6=[];for(let i=0;i<Math.abs(adv);i++)d6.push(rnd6());const bonus=(adv<0?-1:1)*d6.reduce((a,b)=>a+b,0);
   setPan(true);
-  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,total:Math.max(h,f)+mod,t:serverTimestamp()})}
+  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,adv,d6,bonus,total:Math.max(h,f)+mod+bonus,t:serverTimestamp()})}
   catch(e){alert('Não foi possível registrar a rolagem.')}
   return {h,f};
 }
@@ -262,11 +294,11 @@ function diceInit(){
   unsub=onSnapshot(query(collection(db,'rolls'),orderBy('t','desc'),limit(40)),snap=>{
     $('#dlog').innerHTML=snap.docs.map(x=>{const v=x.data({serverTimestamps:'estimate'}),tm=v.t?.toDate?.().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})||'';
       if(v.loc)return `<div class="rl"><div class="rw"><b>${esc(v.who)}</b><span>Local de acerto (1d7) ${tm}</span></div><div class="rres"><span>Dado: ${v.loc}</span><b class="rt" style="font-size:22px">${esc(v.locName)}</b></div></div>`;
-      const hv=v.h+v.mod,fv=v.f+v.mod,res=Math.max(hv,fv),w=hv>fv?'Esperança':'Medo',crit=v.h===v.f,sg=v.mod>=0?'+':'−',m=Math.abs(v.mod);
+      const hv=v.h+v.mod,fv=v.f+v.mod,res=Math.max(hv,fv)+(v.bonus||0),w=hv>fv?'Esperança':'Medo',crit=v.h===v.f,sg=v.mod>=0?'+':'−',m=Math.abs(v.mod);
       return `<div class="rl${crit?' crit':''}"><div class="rw"><b>${esc(v.who)}</b><span>${esc(v.label)} ${tm}</span></div>
         <div class="rd2"><div class="dv h${hv>=fv?' win':''}"><i class="dh">${v.h}</i><small>Esperança</small><span>${sg} ${m} = <b>${hv}</b></span></div>
         <div class="dv f${fv>=hv?' win':''}"><i class="df">${v.f}</i><small>Medo</small><span>${sg} ${m} = <b>${fv}</b></span></div></div>
-        <div class="rres"><span>${crit?'<b class="cb">SUCESSO CRÍTICO!</b>':`Resultado (${w})`}</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
+        ${v.adv?`<div class="adv ${v.adv>0?'up':'dn'}"><span>${v.adv>0?'Vantagem':'Desvantagem'} ${Math.abs(v.adv)}</span>${(v.d6||[]).map(x=>`<i>${x}</i>`).join('')}<b>${v.bonus>=0?'+':'−'} ${Math.abs(v.bonus)}</b></div>`:''}<div class="rres"><span>${crit?'<b class="cb">SUCESSO CRÍTICO!</b>':`Resultado (${w})`}</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
 }
 function diceOff(){unsub&&unsub();unsub=null;$('#dice')?.remove()}
 
@@ -442,7 +474,7 @@ async function sheet(id,sec){
   $('#ainv').onclick=()=>{S.inv.push({n:'',q:1,d:''});lists();save()};
   $('#atal').onclick=()=>{S.tal.push({n:'',d:''});lists();save()};
   /* entrada genérica */
-  app.firstElementChild.addEventListener('click',async e=>{if(e.target.closest('#loc')){const d=await rollLoc(S.nome);$('#locr').textContent=d+': '+LOCS[d-1];return}const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);const rr=await rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome);if(rr&&rr.h>rr.f&&can){S.esp=n(S.esp)+1;const ei=app.querySelector('[data-k=esp]');if(ei)ei.value=S.esp;calc();save()}});
+  app.firstElementChild.addEventListener('click',async e=>{if(e.target.closest('#loc')){const d=await rollLoc(S.nome);$('#locr').textContent=d+': '+LOCS[d-1];return}const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);const adv=await askAdv(b.dataset.rl);if(adv===null)return;const rr=await rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome,adv);if(rr&&rr.h>rr.f&&can){S.esp=n(S.esp)+1;const ei=app.querySelector('[data-k=esp]');if(ei)ei.value=S.esp;calc();save()}});
   app.firstElementChild.addEventListener('input',e=>{const el=e.target;
     if(el.dataset.s){const k=el.dataset.s,m=k==='san'?10+A('int')+A('pod'):k==='ene'?10+A('for')+A('con'):vmax();S['d'+k]=m-n(el.value);calc();save();return}
     if(el.dataset.hp){const i=LIMBS.find(x=>x[0]===el.dataset.hp)[2];S.hp[el.dataset.hp]=hp()[i]-n(el.value);calc();save();return}
