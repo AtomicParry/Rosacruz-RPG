@@ -435,7 +435,7 @@ async function sheet(id,sec){
   $('#cmb').innerHTML=CB.map(([t,r])=>`<div><h3 style="font-size:18px">${t}</h3>${r.map(([k,l,a])=>`<div class="attr" style="grid-template-columns:1fr 60px 40px 44px"><span>${l}${a?` <small class="l" style="display:inline">(+${a.toUpperCase()}/2)</small>`:''}</span>${inp('cb.'+k,'','number')}<b class="ok" id="t_${k}"></b><button class="rb" data-rl="${t}: ${l}" data-rm="t_${k}" title="Rolar 2d12">d12</button></div>`).join('')}</div>`).join('');
 
   /* cálculos */
-  const hp=()=>VIT[Math.min(20,Math.max(1,A('con')+A('tam')))];
+  const hp=()=>VIT[Math.min(20,Math.max(1,A('con')+A('tam')-1))];
   const vmax=()=>LIMBS.reduce((a,[,,i])=>a+hp()[i],0);
   function calc(){
     S.lvl=Math.max(1,n(S.lvl));
