@@ -207,6 +207,17 @@ tr.dead td:first-child{text-decoration:line-through}
 .adv i{font-style:normal;width:24px;height:24px;display:grid;place-items:center;border-radius:4px;font-weight:700;font-size:13px}
 .adv.up i{background:#2f8f5b}.adv.dn i{background:#a8323f}
 .adv.up b{color:#5fd493}.adv.dn b{color:#ff7a89}
+
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}.grid.wide .ph{aspect-ratio:16/10}
+.grid.mem .ph{filter:grayscale(1) brightness(.85)}
+.ev{display:grid;grid-template-columns:minmax(220px,340px) 1fr;gap:22px;align-items:start}
+.ev.col{grid-template-columns:1fr}
+@media(max-width:760px){.ev{grid-template-columns:1fr}}
+.eph{background:#0b0c0e;border:1px solid var(--brass);min-height:160px;display:grid;place-items:center;color:var(--mut)}
+.eph.mem{filter:grayscale(1)}
+.eimg{display:block;width:100%;height:auto;max-height:80vh;object-fit:contain}
+.ef{display:grid;gap:8px}
+.ef textarea{min-height:200px;resize:none;overflow:hidden;line-height:1.6}
 </style>
 </head>
 <body>
@@ -341,8 +352,55 @@ ${back?'<button class="g" id="bk">Voltar</button> ':''}
 function topBind(back){ $('#adm').onclick=toggleAdmin; $('#out').onclick=()=>signOut(auth); if(back)$('#bk').onclick=back }
 function hub(){ diceAdmin();stopSheet();
   app.innerHTML=`<div class="wrap">${top()}<h2>Escolha um arquivo</h2><div class="hub">
-  ${Object.entries(SECS).filter(([k])=>k!=='npc'||admin).map(([k,[n,d]])=>`<button class="door" data-s="${k}"><h2>${n}</h2><span>${d}</span></button>`).join('')}</div></div>`;
-  topBind(); app.querySelectorAll('.door').forEach(b=>b.onclick=()=>list(b.dataset.s));
+  ${Object.entries({...SECS,...EXTRA}).filter(([k])=>k!=='npc'||admin).map(([k,[n,d]])=>`<button class="door" data-s="${k}"><h2>${n}</h2><span>${d}</span></button>`).join('')}</div></div>`;
+  topBind(); app.querySelectorAll('.door').forEach(b=>b.onclick=()=>EXTRA[b.dataset.s]?entries(b.dataset.s):list(b.dataset.s));
+}
+
+/* ---------- LOCAIS / BESTIÁRIO / MEMORIAL ---------- */
+const EXTRA={locais:['Locais','Mapas e lugares. Só o mestre edita.'],bestiario:['Bestiário','Criaturas. Todos podem registrar.'],memorial:['Memorial','Personagens que tombaram. Só o mestre edita.']};
+const eNew=sec=>admin||sec==='bestiario';
+const eCan=(sec,v)=>admin||(sec==='bestiario'&&v.owner===user.uid);
+function toData(file,max,q){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const r=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext('2d').drawImage(im,0,0,c.width,c.height);let d=c.toDataURL('image/jpeg',q);while(d.length>700000&&q>.3){q-=.1;d=c.toDataURL('image/jpeg',q)}d.length>900000?rej(new Error('grande')):res(d)};im.onerror=rej;im.src=URL.createObjectURL(file)})}
+async function entries(sec){
+  stopSheet();
+  const [title,desc]=EXTRA[sec];
+  app.innerHTML=`<div class="wrap">${top(1)}<h2>${title}</h2><p class="l">${desc}</p><br><div class="grid ${sec==='locais'?'wide':''} ${sec==='memorial'?'mem':''}" id="g">Carregando…</div></div>`;
+  topBind(hub);
+  unsubSheet=onSnapshot(query(collection(db,'entries'),where('sec','==',sec)),sn=>{
+    const g=$('#g');if(!g)return;
+    g.innerHTML=eNew(sec)?'<div class="card new" id="nw"><span>+ Novo</span></div>':'';
+    const arr=sn.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+    arr.forEach(v=>{const c=document.createElement('div');c.className='card';
+      c.innerHTML=`<div class="ph" style="${v.img?`background-image:url(${v.img})`:''}">${v.img?'':'?'}</div><b>${esc(v.nome||'Sem nome')}</b>${sec==='bestiario'?`<div class="meta"><span>Rank ${esc(v.rank||'-')}</span></div>`:'<div style="height:8px"></div>'}`;
+      c.onclick=()=>entryView(v.id,sec);g.appendChild(c)});
+    if(!arr.length&&!eNew(sec))g.innerHTML='<p class="l">Nada por aqui ainda.</p>';
+    const nw=$('#nw');if(nw)nw.onclick=async()=>{try{const r=await addDoc(collection(db,'entries'),{sec,owner:user.uid,nome:'Novo registro',desc:'',rank:'',img:''});entryView(r.id,sec)}catch(e){alert('Sem permissão para criar aqui.')}};
+  },()=>{const g=$('#g');if(g)g.textContent='Não foi possível carregar. Confira as regras do Firebase.'});
+}
+async function entryView(id,sec){
+  stopSheet();
+  const sn=await getDoc(doc(db,'entries',id));if(!sn.exists())return entries(sec);
+  const v=sn.data(),can=eCan(sec,v),E={nome:v.nome||'',desc:v.desc||'',rank:v.rank||'',img:v.img||''},dis=can?'':'disabled';
+  app.innerHTML=`<div class="wrap">${top(1)}<div class="box"><div class="ev ${sec==='locais'?'col':''}">
+    <div><div class="eph ${sec==='memorial'?'mem':''}"><img id="eim" class="eimg" ${E.img?`src="${E.img}"`:'hidden'} alt=""><span id="eno" ${E.img?'hidden':''}>Sem imagem</span></div>
+    ${can?'<input type="file" id="efi" accept="image/*" class="hide"><button class="g" id="ebt" style="margin-top:8px">Escolher imagem</button>':''}</div>
+    <div class="ef"><label class="l">Nome</label><input id="en" value="${esc(E.nome)}" ${dis}>
+    ${sec==='bestiario'?`<label class="l">Rank</label><input id="er" value="${esc(E.rank)}" ${dis}>`:''}
+    <label class="l">${sec==='memorial'?'História e como morreu':'Descrição'}</label><textarea class="grow" id="ed" rows="6" ${dis}>${esc(E.desc)}</textarea>
+    ${can?'<div><button class="g" id="edl">Excluir</button></div>':''}</div></div></div></div>`;
+  const pend={};let t;
+  const flush=()=>{clearTimeout(t);if(!Object.keys(pend).length)return;const p={...pend};for(const k in pend)delete pend[k];return updateDoc(doc(db,'entries',id),p).catch(()=>alert('Não foi possível salvar.'))};
+  const sv=o=>{Object.assign(pend,o);clearTimeout(t);t=setTimeout(flush,500)};
+  topBind(async()=>{await flush();entries(sec)});
+  if(!can)return;
+  const gr=e=>{if(!CSS.supports('field-sizing','content')){e.style.height='auto';e.style.height=e.scrollHeight+2+'px'}};
+  $('#en').oninput=e=>sv({nome:e.target.value});
+  if($('#er'))$('#er').oninput=e=>sv({rank:e.target.value});
+  $('#ed').oninput=e=>{sv({desc:e.target.value});gr(e.target)};gr($('#ed'));
+  $('#ebt').onclick=()=>$('#efi').click();
+  $('#efi').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    try{const d=await toData(f,sec==='locais'?1200:800,.75);$('#eim').src=d;$('#eim').hidden=false;$('#eno').hidden=true;sv({img:d})}catch(x){alert('Não consegui usar essa imagem. Tente uma menor.')}};
+  $('#edl').onclick=async()=>{if(confirm('Excluir este registro?')){clearTimeout(t);await deleteDoc(doc(db,'entries',id));entries(sec)}};
 }
 const clone=o=>JSON.parse(JSON.stringify(o));
 const LEAF=o=>{const m={};for(const k in o){const v=o[k];if(v&&typeof v==='object'&&!Array.isArray(v)){for(const j in v)m[k+'.'+j]=v[j]}else m[k]=v}return m};
