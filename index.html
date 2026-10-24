@@ -104,7 +104,7 @@ textarea{word-break:break-word}
 
 @keyframes pisca{0%,100%{opacity:1}50%{opacity:.2}}
 tr.blink td{background:#b5334a22}
-tr.blink td:first-child,tr.blink input,tr.blink td:nth-child(2){color:#ff4d63;font-weight:700;animation:pisca 1s steps(2,start) infinite}
+tr.blink td:first-child,tr.blink .hpi,tr.blink td:nth-child(2){color:#ff4d63;font-weight:700;animation:pisca 1s steps(2,start) infinite}
 tr.blink .bar i{background:#ff4d63}
 @media(prefers-reduced-motion:reduce){tr.blink *{animation:none!important}}
 #pw{display:grid;gap:12px}
@@ -434,7 +434,7 @@ async function list(sec){
 /* ---------- FICHA ---------- */
 async function sheet(id,sec){
   const snap=await getDoc(doc(db,'fichas',id)); const S=snap.data().s; let base=clone(S);
-  S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.lvl=S.lvl||1;S.xp=S.xp||0;if(S.esp==null)S.esp=2;if(S.and==null)S.and=9;S.tal=S.tal||[];if(S.sk.Carga!=null){if(S.sk.Musculatura==null)S.sk.Musculatura=S.sk.Carga;delete S.sk.Carga}
+  S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.lvl=S.lvl||1;S.xp=S.xp||0;if(S.esp==null)S.esp=2;if(S.and==null)S.and=9;S.tal=S.tal||[];S.arm=S.arm||{};if(S.sk.Carga!=null){if(S.sk.Musculatura==null)S.sk.Musculatura=S.sk.Carga;delete S.sk.Carga}
   const can=admin||snap.data().owner===user.uid;
   const n=v=>parseInt(v)||0, A=k=>n(S.a[k]);
   let t;const save=()=>{clearTimeout(t);t=setTimeout(async()=>{
@@ -456,8 +456,8 @@ async function sheet(id,sec){
   </aside><main>
     <div class="box"><h3>Status</h3><div class="st">
       ${[['san','Sanidade','10 + INT + POD'],['vit','Vitalidade','CON + TAM: soma das partes']].map(([k,l,h])=>`<div><label class="l">${l}</label><div class="cv"><input class="cur" type="number" data-s="${k}" ${can?'':'disabled'}><span>/ <b id="${k}_m"></b></span></div><div class="bar"><i id="${k}_b"></i></div></div>`).join('')}<div><label class="l">Esperança</label><div class="cv"><input class="cur" type="number" data-k="esp" value="${esc(S.esp)}" ${can?'':'disabled'}></div></div></div>
-      <table><thead><tr><th>Parte do corpo</th><th>Máx</th><th>Atual</th><th></th></tr></thead><tbody>
-      ${LIMBS.map(([k,l])=>`<tr><td>${l}</td><td id="hm_${k}"></td><td><input class="hpi" type="number" data-hp="${k}" ${can?'':'disabled'}><div class="bar"><i id="hb_${k}"></i></div></td><td><button class="sm g" data-h="${k}" data-d="1" ${can?'':'disabled'}>−</button> <button class="sm g" data-h="${k}" data-d="-1" ${can?'':'disabled'}>+</button></td></tr>`).join('')}</tbody></table></div>
+      <table><thead><tr><th>Parte do corpo</th><th>Máx</th><th>Armadura</th><th>Atual</th><th></th></tr></thead><tbody>
+      ${LIMBS.map(([k,l])=>`<tr><td>${l}</td><td id="hm_${k}"></td><td>${inp('arm.'+k,'','number')}</td><td><input class="hpi" type="number" data-hp="${k}" ${can?'':'disabled'}><div class="bar"><i id="hb_${k}"></i></div></td><td><button class="sm g" data-h="${k}" data-d="1" ${can?'':'disabled'}>−</button> <button class="sm g" data-h="${k}" data-d="-1" ${can?'':'disabled'}>+</button></td></tr>`).join('')}</tbody></table></div>
     <div class="box"><h3>Modificadores</h3><div class="tg">${TILES.map(([k,l,ed,rl])=>`<div class="tl t_${k}"><div class="tv">${ed?inp(k,'','number'):`<b id="tl_${k}"></b>`}<i>+</i>${inp(k+'x','','number')}</div><small>${l}</small><em>= <b id="tt_${k}"></b>${rl?` <button class="rb" data-rl="Iniciativa" data-rm="tt_${k}" title="Rolar 2d12">d12</button>`:''}</em></div>`).join('')}</div></div>
     <div class="box"><h3>Identificação</h3><div class="f">${MAIN.map(([k,l,t])=>`<div><label>${l}</label>${inp(k,'',t)}</div>`).join('')}
       <div><label>Nível (editável)</label>${inp('lvl','','number')}</div>
@@ -544,7 +544,7 @@ async function sheet(id,sec){
   window.onresize=growAll;
   lists();calc();
   const refresh=()=>{
-    S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.tal=S.tal||[];S.lvl=S.lvl||1;S.xp=S.xp||0;
+    S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.tal=S.tal||[];S.arm=S.arm||{};S.lvl=S.lvl||1;S.xp=S.xp||0;
     app.querySelectorAll('[data-k]').forEach(el=>{if(el===document.activeElement)return;el.value=el.dataset.k.split('.').reduce((o,k)=>o?.[k],S)??''});
     showPh();const ae=document.activeElement;if(!(ae&&ae.dataset&&ae.dataset.l))lists();
     calc();grow();growAll();
