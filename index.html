@@ -240,6 +240,19 @@ tr.dead td:first-child{text-decoration:line-through}
 .list .card .fn{margin:0}
 .list .card .x{top:50%;transform:translateY(-50%)}
 @media(max-width:640px){.list .card{grid-template-columns:46px 1fr}.list .card .fn,.list .card .chips{grid-column:2}}
+
+.stage{position:relative;aspect-ratio:16/9;max-height:82vh;width:100%;background:#0b0c0e center/cover no-repeat;border:1px solid var(--line);overflow:hidden;border-radius:4px}
+.nobg{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);text-align:center;padding:20px}
+.cast{position:absolute;left:2%;right:2%;bottom:3%;display:flex;justify-content:center;gap:1.2%;align-items:flex-end}
+.tk{flex:0 1 11%;min-width:0;position:relative;text-align:center}
+.tp{aspect-ratio:3/4;background:#0b0c0e center/cover no-repeat;border:2px solid #ffffff55;border-radius:6px 6px 2px 2px;box-shadow:0 10px 18px #000a;display:grid;place-items:center;color:var(--mut)}
+.tk.cut .tp{background-color:transparent;background-size:contain;background-position:center bottom;border:0;box-shadow:none;aspect-ratio:3/5;filter:drop-shadow(0 8px 8px #000c)}
+.tn{display:block;margin-top:4px;font-family:'Cormorant Garamond',serif;font-weight:700;font-size:clamp(11px,1.5vw,20px);color:#fff;text-shadow:0 1px 5px #000,0 0 10px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc{position:absolute;top:-8px;left:50%;transform:translateX(-50%);display:flex;gap:3px;z-index:2}
+.tc button{padding:1px 6px;font-size:11px;background:#000c}
+.pl{display:grid;gap:6px;max-height:38vh;overflow:auto}
+.pi{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;text-align:left}
+.pi .av{width:36px;height:36px;border-radius:50%;background:#0b0c0e center/cover}.pi small{color:var(--mut)}
 </style>
 </head>
 <body>
@@ -375,14 +388,14 @@ function topBind(back){ $('#adm').onclick=toggleAdmin; $('#out').onclick=()=>sig
 function hub(){ diceAdmin();stopSheet();
   app.innerHTML=`<div class="wrap">${top()}<h2>Escolha um arquivo</h2><div class="hub">
   ${Object.entries({...SECS,...EXTRA}).filter(([k])=>k!=='npc'||admin).map(([k,[n,d]])=>`<button class="door" data-s="${k}"><h2>${n}</h2><span>${d}</span></button>`).join('')}</div></div>`;
-  topBind(); app.querySelectorAll('.door').forEach(b=>b.onclick=()=>EXTRA[b.dataset.s]?entries(b.dataset.s):list(b.dataset.s));
+  topBind(); app.querySelectorAll('.door').forEach(b=>b.onclick=()=>b.dataset.s==='sessao'?sessao():EXTRA[b.dataset.s]?entries(b.dataset.s):list(b.dataset.s));
 }
 
 /* ---------- LOCAIS / BESTIÁRIO / MEMORIAL ---------- */
-const EXTRA={locais:['Locais','Mapas e lugares. Só o mestre edita.'],bestiario:['Bestiário','Criaturas. Todos podem registrar.'],memorial:['Memorial','Personagens que tombaram. Só o mestre edita.']};
+const EXTRA={sessao:['Sessão','O cenário da mesa com os personagens em cena.'],locais:['Locais','Mapas e lugares. Só o mestre edita.'],bestiario:['Bestiário','Criaturas. Todos podem registrar.'],memorial:['Memorial','Personagens que tombaram. Só o mestre edita.']};
 const eNew=sec=>admin||sec==='bestiario';
 const eCan=(sec,v)=>admin||(sec==='bestiario'&&v.owner===user.uid);
-function toData(file,max,q){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const r=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext('2d').drawImage(im,0,0,c.width,c.height);let d=c.toDataURL('image/jpeg',q);while(d.length>700000&&q>.3){q-=.1;d=c.toDataURL('image/jpeg',q)}d.length>900000?rej(new Error('grande')):res(d)};im.onerror=rej;im.src=URL.createObjectURL(file)})}
+function toData(file,max,q,lim=700000,fmt='image/jpeg'){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const r=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext('2d').drawImage(im,0,0,c.width,c.height);let d=c.toDataURL(fmt,q);while(d.length>lim&&q>.3){q-=.1;d=c.toDataURL(fmt,q)}d.length>lim*1.3?rej(new Error('grande')):res(d)};im.onerror=rej;im.src=URL.createObjectURL(file)})}
 async function entries(sec){
   stopSheet();
   const [title,desc]=EXTRA[sec];
@@ -423,6 +436,49 @@ async function entryView(id,sec){
   $('#efi').onchange=async e=>{const f=e.target.files[0];if(!f)return;
     try{const d=await toData(f,sec==='locais'?1200:800,.75);$('#eim').src=d;$('#eim').hidden=false;$('#eno').hidden=true;sv({img:d})}catch(x){alert('Não consegui usar essa imagem. Tente uma menor.')}};
   $('#edl').onclick=async()=>{if(confirm('Excluir este registro?')){clearTimeout(t);await deleteDoc(doc(db,'entries',id));entries(sec)}};
+}
+
+/* ---------- SESSÃO (cenário + personagens em cena) ---------- */
+function pickChar(){return new Promise(async res=>{
+  const o=document.createElement('div');o.className='mo';
+  o.innerHTML=`<div class="mb" style="max-height:88vh;overflow:auto"><h3>Adicionar personagem</h3><input id="pq" type="search" placeholder="Buscar ficha por nome…"><div id="pl" class="pl">Carregando…</div>
+    <div class="l">Ou envie uma imagem avulsa (PNG sem fundo fica melhor em cena)</div><div class="ar"><input id="pn" placeholder="Nome" style="flex:2"><button class="g" id="pf">Escolher imagem</button><input type="file" id="pfi" accept="image/*" class="hide"></div>
+    <div class="mr"><button class="g" id="pc">Cancelar</button></div></div>`;
+  document.body.appendChild(o);const end=v=>{o.remove();res(v)};
+  const list=[];try{for(const sc of ['mesa','guilda','npc']){const sn=await getDocs(query(collection(db,'cards'),where('sec','==',sc)));sn.forEach(d=>list.push({sec:sc,...d.data()}))}}catch(e){}
+  const draw=()=>{const q=$('#pq').value.toLowerCase();$('#pl').innerHTML=list.map((c,i)=>[c,i]).filter(([c])=>(c.nome||'').toLowerCase().includes(q)).map(([c,i])=>`<button class="g pi" data-i="${i}"><span class="av" style="${c.foto?`background-image:url(${c.foto})`:''}"></span><b>${esc(c.nome||'Sem nome')}</b><small>${SECS[c.sec][0]}</small></button>`).join('')||'<p class="l">Nenhuma ficha encontrada.</p>'};
+  draw();$('#pq').oninput=draw;
+  o.addEventListener('click',e=>{if(e.target===o)return end(null);const b=e.target.closest('[data-i]');if(b){const c=list[+b.dataset.i];end({nome:c.nome||'Sem nome',img:c.foto||'',cut:false})}});
+  $('#pc').onclick=()=>end(null);$('#pf').onclick=()=>$('#pfi').click();
+  $('#pfi').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=await toData(f,500,.8,150000,'image/webp');end({nome:$('#pn').value||'Personagem',img:d,cut:true})}catch(x){alert('Imagem grande demais. Tente uma menor.')}};
+})}
+async function sessao(){
+  stopSheet();
+  const MAX=8;let bg='',cast=[];
+  app.innerHTML=`<div class="wrap">${top(1)}<h2>Sessão</h2><br>${admin?`<div class="tb"><button id="sbg">Trocar cenário</button><input type="file" id="sfi" accept="image/*" class="hide"><button id="sad">+ Personagem</button><button class="g" id="scl">Limpar personagens</button><span class="l" id="scn"></span></div>`:''}<div class="stage" id="stg"></div></div>`;
+  topBind(hub);
+  const render=()=>{
+    const st=$('#stg');if(!st)return;
+    st.style.backgroundImage=bg?`url(${bg})`:'';
+    st.innerHTML=(bg?'':`<div class="nobg">${admin?'Escolha a imagem do cenário em "Trocar cenário".':'O mestre ainda não definiu o cenário.'}</div>`)+
+      `<div class="cast">${cast.map((c,i)=>`<div class="tk${c.cut?' cut':''}"><div class="tp" style="${c.img?`background-image:url(${c.img})`:''}">${c.img?'':'?'}</div><span class="tn">${esc(c.nome)}</span>${admin?`<div class="tc"><button class="g" data-mv="-1" data-i="${i}" title="Mover para a esquerda">◀</button><button class="g" data-mv="1" data-i="${i}" title="Mover para a direita">▶</button><button class="g" data-rm="${i}" title="Remover">×</button></div>`:''}</div>`).join('')}</div>`;
+    if(admin){$('#scn').textContent=cast.length+' de '+MAX+' personagens';$('#sad').disabled=cast.length>=MAX}
+  };
+  const saveCast=()=>setDoc(doc(db,'session','cast'),{list:cast}).catch(()=>alert('Não foi possível salvar. Confira as regras do Firebase.'));
+  if(admin){
+    $('#sbg').onclick=()=>$('#sfi').click();
+    $('#sfi').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=await toData(f,1600,.78);await setDoc(doc(db,'session','bg'),{img:d})}catch(x){alert('Não consegui usar essa imagem. Tente uma menor.')}};
+    $('#sad').onclick=async()=>{if(cast.length>=MAX)return;const c=await pickChar();if(!c)return;cast=[...cast,c];saveCast()};
+    $('#scl').onclick=()=>{if(cast.length&&confirm('Tirar todos os personagens da cena?')){cast=[];saveCast()}};
+    $('#stg').addEventListener('click',e=>{
+      const m=e.target.closest('[data-mv]'),r=e.target.closest('[data-rm]');
+      if(m){const i=+m.dataset.i,j=i+ +m.dataset.mv;if(j<0||j>=cast.length)return;cast=[...cast];[cast[i],cast[j]]=[cast[j],cast[i]];saveCast()}
+      else if(r){cast=cast.filter((_,i)=>i!==+r.dataset.rm);saveCast()}
+    });
+  }
+  const u1=onSnapshot(doc(db,'session','bg'),sn=>{bg=sn.exists()?(sn.data().img||''):'';render()},()=>{}),
+        u2=onSnapshot(doc(db,'session','cast'),sn=>{cast=sn.exists()?(sn.data().list||[]):[];render()},()=>{});
+  unsubSheet=()=>{u1();u2()};render();
 }
 const clone=o=>JSON.parse(JSON.stringify(o));
 const LEAF=o=>{const m={};for(const k in o){const v=o[k];if(v&&typeof v==='object'&&!Array.isArray(v)){for(const j in v)m[k+'.'+j]=v[j]}else m[k]=v}return m};
