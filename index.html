@@ -253,6 +253,7 @@ tr.dead td:first-child{text-decoration:line-through}
 .pl{display:grid;gap:6px;max-height:38vh;overflow:auto}
 .pi{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;text-align:left}
 .pi .av{width:36px;height:36px;border-radius:50%;background:#0b0c0e center/cover}.pi small{color:var(--mut)}
+.tk.op{cursor:pointer}.tk.op:hover .tp{outline:2px solid var(--rose);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -445,37 +446,43 @@ function pickChar(){return new Promise(async res=>{
     <div class="l">Ou envie uma imagem avulsa (PNG sem fundo fica melhor em cena)</div><div class="ar"><input id="pn" placeholder="Nome" style="flex:2"><button class="g" id="pf">Escolher imagem</button><input type="file" id="pfi" accept="image/*" class="hide"></div>
     <div class="mr"><button class="g" id="pc">Cancelar</button></div></div>`;
   document.body.appendChild(o);const end=v=>{o.remove();res(v)};
-  const list=[];try{for(const sc of ['mesa','guilda','npc']){const sn=await getDocs(query(collection(db,'cards'),where('sec','==',sc)));sn.forEach(d=>list.push({sec:sc,...d.data()}))}}catch(e){}
+  const list=[];try{for(const sc of ['mesa','guilda','npc']){const sn=await getDocs(query(collection(db,'cards'),where('sec','==',sc)));sn.forEach(d=>list.push({sec:sc,id:d.id,...d.data()}))}}catch(e){}
   const draw=()=>{const q=$('#pq').value.toLowerCase();$('#pl').innerHTML=list.map((c,i)=>[c,i]).filter(([c])=>(c.nome||'').toLowerCase().includes(q)).map(([c,i])=>`<button class="g pi" data-i="${i}"><span class="av" style="${c.foto?`background-image:url(${c.foto})`:''}"></span><b>${esc(c.nome||'Sem nome')}</b><small>${SECS[c.sec][0]}</small></button>`).join('')||'<p class="l">Nenhuma ficha encontrada.</p>'};
   draw();$('#pq').oninput=draw;
-  o.addEventListener('click',e=>{if(e.target===o)return end(null);const b=e.target.closest('[data-i]');if(b){const c=list[+b.dataset.i];end({nome:c.nome||'Sem nome',img:c.foto||'',cut:false})}});
+  o.addEventListener('click',e=>{if(e.target===o)return end(null);const b=e.target.closest('[data-i]');if(b){const c=list[+b.dataset.i];end({nome:c.nome||'Sem nome',img:c.foto||'',cut:false,fid:c.id,sec:c.sec,owner:c.owner||''})}});
   $('#pc').onclick=()=>end(null);$('#pf').onclick=()=>$('#pfi').click();
   $('#pfi').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=await toData(f,500,.8,150000,'image/webp');end({nome:$('#pn').value||'Personagem',img:d,cut:true})}catch(x){alert('Imagem grande demais. Tente uma menor.')}};
 })}
 async function sessao(){
   stopSheet();
   const MAX=8;let bg='',cast=[];
-  app.innerHTML=`<div class="wrap">${top(1)}<h2>Sessão</h2><br>${admin?`<div class="tb"><button id="sbg">Trocar cenário</button><input type="file" id="sfi" accept="image/*" class="hide"><button id="sad">+ Personagem</button><button class="g" id="scl">Limpar personagens</button><span class="l" id="scn"></span></div>`:''}<div class="stage" id="stg"></div></div>`;
+  app.innerHTML=`<div class="wrap">${top(1)}<h2>Sessão</h2><br>${admin?`<div class="tb"><button id="sbg">Trocar cenário</button><button class="g" id="sbr">Remover cenário</button><input type="file" id="sfi" accept="image/*" class="hide"><button id="sad">+ Personagem</button><button class="g" id="scl">Limpar personagens</button><span class="l" id="scn"></span></div>`:''}<div class="stage" id="stg"></div></div>`;
   topBind(hub);
+  const op=c=>c.fid&&(admin||c.owner===user.uid);
   const render=()=>{
     const st=$('#stg');if(!st)return;
     st.style.backgroundImage=bg?`url(${bg})`:'';
     st.innerHTML=(bg?'':`<div class="nobg">${admin?'Escolha a imagem do cenário em "Trocar cenário".':'O mestre ainda não definiu o cenário.'}</div>`)+
-      `<div class="cast">${cast.map((c,i)=>`<div class="tk${c.cut?' cut':''}"><div class="tp" style="${c.img?`background-image:url(${c.img})`:''}">${c.img?'':'?'}</div><span class="tn">${esc(c.nome)}</span>${admin?`<div class="tc"><button class="g" data-mv="-1" data-i="${i}" title="Mover para a esquerda">◀</button><button class="g" data-mv="1" data-i="${i}" title="Mover para a direita">▶</button><button class="g" data-rm="${i}" title="Remover">×</button></div>`:''}</div>`).join('')}</div>`;
-    if(admin){$('#scn').textContent=cast.length+' de '+MAX+' personagens';$('#sad').disabled=cast.length>=MAX}
+      `<div class="cast">${cast.map((c,i)=>`<div class="tk${c.cut?' cut':''}${op(c)?' op':''}"${op(c)?` data-open data-fid="${c.fid}" data-sec="${c.sec}" title="Abrir a ficha"`:''}><div class="tp" style="${c.img?`background-image:url(${c.img})`:''}">${c.img?'':'?'}</div><span class="tn">${esc(c.nome)}</span>${admin?`<div class="tc"><button class="g" data-mv="-1" data-i="${i}" title="Mover para a esquerda">◀</button><button class="g" data-mv="1" data-i="${i}" title="Mover para a direita">▶</button><button class="g" data-rm="${i}" title="Remover">×</button></div>`:''}</div>`).join('')}</div>`;
+    if(admin){$('#scn').textContent=cast.length+' de '+MAX+' personagens';$('#sad').disabled=cast.length>=MAX;$('#sbr').classList.toggle('hide',!bg)}
   };
   const saveCast=()=>setDoc(doc(db,'session','cast'),{list:cast}).catch(()=>alert('Não foi possível salvar. Confira as regras do Firebase.'));
   if(admin){
     $('#sbg').onclick=()=>$('#sfi').click();
+    $('#sbr').onclick=()=>{if(confirm('Remover a imagem do cenário?'))deleteDoc(doc(db,'session','bg')).catch(()=>alert('Não foi possível remover.'))};
     $('#sfi').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=await toData(f,1600,.78);await setDoc(doc(db,'session','bg'),{img:d})}catch(x){alert('Não consegui usar essa imagem. Tente uma menor.')}};
     $('#sad').onclick=async()=>{if(cast.length>=MAX)return;const c=await pickChar();if(!c)return;cast=[...cast,c];saveCast()};
     $('#scl').onclick=()=>{if(cast.length&&confirm('Tirar todos os personagens da cena?')){cast=[];saveCast()}};
-    $('#stg').addEventListener('click',e=>{
-      const m=e.target.closest('[data-mv]'),r=e.target.closest('[data-rm]');
-      if(m){const i=+m.dataset.i,j=i+ +m.dataset.mv;if(j<0||j>=cast.length)return;cast=[...cast];[cast[i],cast[j]]=[cast[j],cast[i]];saveCast()}
-      else if(r){cast=cast.filter((_,i)=>i!==+r.dataset.rm);saveCast()}
-    });
   }
+  $('#stg').addEventListener('click',e=>{
+    if(admin){
+      const m=e.target.closest('[data-mv]'),r=e.target.closest('[data-rm]');
+      if(m){const i=+m.dataset.i,j=i+ +m.dataset.mv;if(j<0||j>=cast.length)return;cast=[...cast];[cast[i],cast[j]]=[cast[j],cast[i]];saveCast();return}
+      if(r){cast=cast.filter((_,i)=>i!==+r.dataset.rm);saveCast();return}
+      if(e.target.closest('.tc'))return;
+    }
+    const t=e.target.closest('[data-open]');if(t)sheet(t.dataset.fid,t.dataset.sec,'sessao');
+  });
   const u1=onSnapshot(doc(db,'session','bg'),sn=>{bg=sn.exists()?(sn.data().img||''):'';render()},()=>{}),
         u2=onSnapshot(doc(db,'session','cast'),sn=>{cast=sn.exists()?(sn.data().list||[]):[];render()},()=>{});
   unsubSheet=()=>{u1();u2()};render();
@@ -530,8 +537,10 @@ async function list(sec){
 }
 
 /* ---------- FICHA ---------- */
-async function sheet(id,sec){
-  const snap=await getDoc(doc(db,'fichas',id)); const S=snap.data().s; let base=clone(S);
+async function sheet(id,sec,from){
+  let snap;try{snap=await getDoc(doc(db,'fichas',id))}catch(e){return alert('Sem permissão para abrir esta ficha.')}
+  if(!snap.exists())return alert('Essa ficha não existe mais.');
+  const S=snap.data().s; let base=clone(S);
   S.a=S.a||{};S.sk=S.sk||{};S.cb=S.cb||{};S.hp=S.hp||{};S.pw=S.pw||[];S.inv=S.inv||[];S.lvl=S.lvl||1;S.xp=S.xp||0;if(S.esp==null)S.esp=2;if(S.and==null)S.and=9;S.tal=S.tal||[];S.arm=S.arm||{};if(S.sk.Carga!=null){if(S.sk.Musculatura==null)S.sk.Musculatura=S.sk.Carga;delete S.sk.Carga}
   const can=admin||snap.data().owner===user.uid;
   const n=v=>parseInt(v)||0, A=k=>n(S.a[k]);
@@ -544,7 +553,7 @@ async function sheet(id,sec){
   const inp=(path,ph,type)=>`<input data-k="${path}" type="${type||'text'}" value="${esc(path.split('.').reduce((o,k)=>o?.[k],S))}" ${can?'':'disabled'}>`;
 
   app.innerHTML=`<div class="wrap">${top(1)}
-  <div class="hd"><h2 id="hn"></h2><span id="hs"></span><label class="l" style="margin-left:auto">Bônus extra nas rolagens <input id="rbonus" type="number" value="0" style="width:70px"></label></div>
+  <div class="hd"><h2 id="hn"></h2><span id="hs"></span><button class="g" id="gosess" style="margin-left:auto">Ir para a Sessão</button><label class="l">Bônus extra nas rolagens <input id="rbonus" type="number" value="0" style="width:70px"></label></div>
   <div class="tabs">${['Principal','Anotações','Poderes','Inventário','História','Talentos'].map((x,i)=>`<button data-t="${i}" class="${i?'':'on'}">${x}</button>`).join('')}</div>
 
   <div class="tab" data-p="0"><div class="lay"><aside>
@@ -576,7 +585,8 @@ async function sheet(id,sec){
   <div class="tab hide" data-p="4"><textarea class="grow hist" data-k="hist" placeholder="A história do personagem…" ${can?'':'disabled'}>${esc(S.hist)}</textarea></div>
   <div class="tab hide" data-p="5"><div class="box"><h3>Talentos</h3><div id="tal"></div><button id="atal" style="margin-top:12px" ${can?'':'disabled'}>+ Novo talento</button></div></div>
 </div>`;
-  topBind(()=>list(sec));
+  topBind(()=>from==='sessao'?sessao():list(sec));
+  $('#gosess').onclick=()=>sessao();
 
   /* abas */
   app.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
