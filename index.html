@@ -218,6 +218,28 @@ tr.dead td:first-child{text-decoration:line-through}
 .eimg{display:block;width:100%;height:auto;max-height:80vh;object-fit:contain}
 .ef{display:grid;gap:8px}
 .ef textarea{min-height:200px;resize:none;overflow:hidden;line-height:1.6}
+
+.tb{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.tb #q{flex:1;min-width:180px;max-width:340px}
+.tb select{background:#0b0c0e;border:1px solid var(--line);border-radius:3px;padding:7px 9px}
+.chk{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:13px}.chk input{width:auto}
+.vt{display:flex}.vt button{border-radius:0}.vt button:first-child{border-radius:3px 0 0 3px}.vt button:last-child{border-radius:0 3px 3px 0;border-left:0}.vt button.on{background:var(--rose);border-color:var(--rose)}
+.tb .l{margin-left:auto}
+.card{transition:transform .15s,border-color .15s}
+.card:not(.lock):not(.new):hover{transform:translateY(-3px);border-color:var(--rose)}
+.grid.gc{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.gc .card .ph{aspect-ratio:4/5;position:relative}
+.lv{position:absolute;top:6px;left:6px;background:#000c;border:1px solid var(--brass);color:var(--brass);padding:1px 8px;border-radius:10px;font-size:12px;font-family:Barlow,sans-serif}
+.cb{padding:8px 10px 10px}.cb b{padding:0;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fn{color:var(--brass);font-size:13px;margin:1px 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips{display:flex;gap:5px;flex-wrap:wrap}.chips span{background:#0b0c0e;border:1px solid var(--line);border-radius:10px;padding:0 8px;font-size:11.5px;color:var(--mut)}
+.grid.list{grid-template-columns:1fr;gap:6px}
+.list .card{display:grid;grid-template-columns:46px minmax(120px,1.4fr) minmax(90px,1fr) auto;gap:12px;align-items:center;padding:6px 52px 6px 6px}
+.list .card .av{width:46px;height:46px;border-radius:50%;background:#0b0c0e center/cover}
+.list .card b{padding:0;font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list .card .fn{margin:0}
+.list .card .x{top:50%;transform:translateY(-50%)}
+@media(max-width:640px){.list .card{grid-template-columns:46px 1fr}.list .card .fn,.list .card .chips{grid-column:2}}
 </style>
 </head>
 <body>
@@ -410,7 +432,7 @@ const summ=(S,sec,owner)=>({sec,owner,nome:S.nome||'',foto:S.foto||'',idade:S.id
 async function list(sec){
   stopSheet();
   if(sec==='npc'&&!admin) return hub();
-  app.innerHTML=`<div class="wrap">${top(1)}<h2>${SECS[sec][0]}</h2><br>${sec==='npc'?'<div class="box" id="medo"><h3>Medo</h3><div class="mp"><button class="g" id="mm">−</button><input id="mpts" type="number"><button class="g" id="mp">+</button></div></div>':''}<div class="grid" id="g">Carregando…</div></div>`;
+  app.innerHTML=`<div class="wrap">${top(1)}<h2>${SECS[sec][0]}</h2><br>${sec==='npc'?'<div class="box" id="medo"><h3>Medo</h3><div class="mp"><button class="g" id="mm">−</button><input id="mpts" type="number"><button class="g" id="mp">+</button></div></div>':''}<div class="tb"><input id="q" type="search" placeholder="Buscar por nome, função, rank…"><select id="so"><option value="nome">Ordenar: Nome</option><option value="lvl">Ordenar: Nível</option><option value="rank">Ordenar: Rank</option></select><label class="chk"><input type="checkbox" id="mine"> Só as minhas</label><div class="vt"><button class="g" id="vg">Cards</button><button class="g" id="vl">Lista</button></div><button id="nw">+ Nova ficha</button><span id="cnt" class="l"></span></div><div class="grid gc" id="g">Carregando…</div></div>`;
   topBind(hub);
   if(sec==='npc'){const ref=doc(db,'config','medo'),mi=$('#mpts');let p=0;
     try{p=(await getDoc(ref)).data()?.pts||0}catch(e){}
@@ -420,15 +442,35 @@ async function list(sec){
   const cards=new Map();cs.forEach(d=>cards.set(d.id,d.data()));
   const fs=await getDocs(admin?query(collection(db,'fichas'),where('sec','==',sec)):query(collection(db,'fichas'),where('sec','==',sec),where('owner','==',user.uid)));
   for(const d of fs.docs){const v=d.data(),c=summ(v.s||{},sec,v.owner);if(!cards.has(d.id))await setDoc(doc(db,'cards',d.id),c);cards.set(d.id,c)}
-  const g=$('#g'); g.innerHTML='<div class="card new" id="nw"><span>+ Nova ficha</span></div>';
-  cards.forEach((v,id)=>{const mine=admin||v.owner===user.uid;
-    const c=document.createElement('div');c.className='card'+(mine?'':' lock');
-    if(!mine)c.title='Somente visualização';
-    c.innerHTML=`<div class="ph" style="${v.foto?`background-image:url(${v.foto})`:''}">${v.foto?'':'?'}</div><b>${esc(v.nome||'Sem nome')}</b><div class="meta"><span>Idade ${esc(v.idade||'-')}</span><span>Rank ${esc(v.rank||'-')}</span><span>Nível ${esc(v.lvl||1)}</span><span>${esc(v.funcao||'Sem função')}</span></div>${mine?'<button class="x" title="Excluir">×</button>':''}`;
-    if(mine)c.onclick=()=>sheet(id,sec);
-    const x=c.querySelector('.x'); if(x)x.onclick=async e=>{e.stopPropagation();if(confirm('Excluir esta ficha?')){await deleteDoc(doc(db,'fichas',id));await deleteDoc(doc(db,'cards',id));list(sec)}};
-    g.appendChild(c)});
+  const ORD=['SSS','SS','S','A','B','C','D','E','F'];
+  const rs=x=>{const t=String(x||'').toUpperCase().replace(/\s/g,''),i=ORD.indexOf(t.replace(/[+-]/g,''));return (i<0?99:i)+(t.includes('+')?-.3:t.includes('-')?.3:0)};
+  const cmpN=(a,b)=>String(a.nome||'').localeCompare(String(b.nome||''));
+  const st={q:'',so:'nome',mine:false,view:localStorage.getItem('view')||'grid'};let all=new Map();
+  const render=()=>{
+    const g=$('#g');if(!g)return;
+    let arr=[...all.entries()].map(([id,v])=>({id,...v,mine:admin||v.owner===user.uid}));
+    const q=st.q.trim().toLowerCase();
+    if(q)arr=arr.filter(v=>[v.nome,v.funcao,v.rank,v.idade].join(' ').toLowerCase().includes(q));
+    if(st.mine)arr=arr.filter(v=>v.owner===user.uid);
+    arr.sort(st.so==='lvl'?(a,b)=>(b.lvl||1)-(a.lvl||1)||cmpN(a,b):st.so==='rank'?(a,b)=>rs(a.rank)-rs(b.rank)||cmpN(a,b):cmpN);
+    $('#cnt').textContent=arr.length+' de '+all.size+' fichas';
+    $('#vg').classList.toggle('on',st.view!=='list');$('#vl').classList.toggle('on',st.view==='list');
+    g.className='grid '+(st.view==='list'?'list':'gc');g.innerHTML='';
+    arr.forEach(v=>{const c=document.createElement('div');c.className='card'+(v.mine?'':' lock');if(!v.mine)c.title='Somente visualização';
+      const bg=v.foto?`background-image:url(${v.foto})`:'',x=v.mine?'<button class="x" title="Excluir">×</button>':'',
+        chips=`<span>Nv ${esc(v.lvl||1)}</span><span>Rank ${esc(v.rank||'-')}</span><span>${v.idade?esc(v.idade)+' anos':'idade -'}</span>`;
+      c.innerHTML=st.view==='list'
+        ?`<div class="av" style="${bg}"></div><b>${esc(v.nome||'Sem nome')}</b><span class="fn">${esc(v.funcao||'Sem função')}</span><span class="chips">${chips}</span>${x}`
+        :`<div class="ph" style="${bg}">${v.foto?'':'?'}<span class="lv">Nv ${esc(v.lvl||1)}</span></div><div class="cb"><b>${esc(v.nome||'Sem nome')}</b><div class="fn">${esc(v.funcao||'Sem função')}</div><div class="chips"><span>Rank ${esc(v.rank||'-')}</span><span>${v.idade?esc(v.idade)+' anos':'idade -'}</span></div></div>${x}`;
+      if(v.mine)c.onclick=()=>sheet(v.id,sec);
+      const xb=c.querySelector('.x');if(xb)xb.onclick=async e=>{e.stopPropagation();if(confirm('Excluir esta ficha?')){await deleteDoc(doc(db,'fichas',v.id));await deleteDoc(doc(db,'cards',v.id))}};
+      g.appendChild(c)});
+    if(!arr.length)g.innerHTML='<p class="l">Nenhuma ficha encontrada.</p>';
+  };
+  $('#q').oninput=e=>{st.q=e.target.value;render()};$('#so').onchange=e=>{st.so=e.target.value;render()};$('#mine').onchange=e=>{st.mine=e.target.checked;render()};
+  $('#vg').onclick=()=>{st.view='grid';localStorage.setItem('view','grid');render()};$('#vl').onclick=()=>{st.view='list';localStorage.setItem('view','list');render()};
   $('#nw').onclick=async()=>{const S0={nome:'Novo personagem',lvl:1,xp:0,a:{},sk:{},cb:{},hp:{},pw:[],inv:[],nt:''};const r=await addDoc(collection(db,'fichas'),{sec,owner:user.uid,s:S0});await setDoc(doc(db,'cards',r.id),summ(S0,sec,user.uid));sheet(r.id,sec)};
+  unsubSheet=onSnapshot(query(collection(db,'cards'),where('sec','==',sec)),sn=>{all=new Map(sn.docs.map(d=>[d.id,d.data()]));render()},()=>{const g=$('#g');if(g)g.textContent='Não foi possível carregar as fichas. Confira as regras do Firebase.'});
 }
 
 /* ---------- FICHA ---------- */
