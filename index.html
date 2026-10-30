@@ -254,6 +254,16 @@ tr.dead td:first-child{text-decoration:line-through}
 .pi{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;text-align:left}
 .pi .av{width:36px;height:36px;border-radius:50%;background:#0b0c0e center/cover}.pi small{color:var(--mut)}
 .tk.op{cursor:pointer}.tk.op:hover .tp{outline:2px solid var(--rose);outline-offset:2px}
+
+.seg{display:flex}.seg button{flex:1;border-radius:0}.seg button:first-child{border-radius:3px 0 0 3px}.seg button:last-child{border-radius:0 3px 3px 0;border-left:0}.seg button.on{background:var(--rose);border-color:var(--rose)}
+.lbs{display:flex;justify-content:space-between;font-size:12px;margin-bottom:-4px}.lbs .dn{color:#ff7a89}.lbs .up{color:#5fd493}
+.sc{display:flex;gap:4px;justify-content:center}
+.sl{flex:1;max-width:50px;padding:10px 0;font-size:22px;font-weight:700;line-height:1;background:#0b0c0e;border:1px solid var(--line);color:var(--mut)}
+.sl.dn.on{background:#a8323f;border-color:#a8323f;color:#fff}.sl.up.on{background:#2f8f5b;border-color:#2f8f5b;color:#fff}.sl.mid.on{background:var(--brass);border-color:var(--brass);color:#111}
+.advbig{text-align:center;font-size:20px;min-height:52px;font-family:'Cormorant Garamond',serif;font-weight:700}
+.advbig .up,.advbig .dn{font-family:Barlow,sans-serif;font-size:26px;letter-spacing:.08em}
+.advbig .up{color:#5fd493}.advbig .dn{color:#ff7a89}.advbig .l{font-family:Barlow,sans-serif;font-weight:400}
+.cmb{margin-top:6px;font-size:12px;color:var(--brass);border:1px dashed var(--line);padding:2px 8px;display:inline-block}
 </style>
 </head>
 <body>
@@ -269,7 +279,7 @@ const firebaseConfig = {
 /* ============================================================== */
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,collection,query,where,getDocs,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,orderBy,limit,serverTimestamp,writeBatch,FieldPath,deleteField} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,collection,query,where,getDocs,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,orderBy,limit,serverTimestamp,writeBatch,FieldPath,deleteField,increment} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const fb=initializeApp(firebaseConfig),auth=getAuth(fb),db=getFirestore(fb);
 const $=s=>document.querySelector(s), app=$('#app');
@@ -291,29 +301,40 @@ let unsub=null;
 const rnd=()=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%12+1};
 const rnd6=()=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%6+1};
 function askAdv(label){return new Promise(res=>{
-  let sel=0;const o=document.createElement('div');o.className='mo';
-  const bt=v=>`<button class="g" data-v="${v}">${v<0?'Desv. '+(-v):v>0?'Vant. '+v:'Normal'}</button>`;
+  let sel=0,comb=localStorage.getItem('combate')==='1';
+  const o=document.createElement('div');o.className='mo';
+  const slot=v=>`<button class="sl ${v<0?'dn':'up'}" data-v="${v}" aria-label="${v<0?'Desvantagem '+(-v):'Vantagem '+v}">${v<0?'&lt;':'&gt;'}</button>`;
   o.innerHTML=`<div class="mb" role="dialog" aria-modal="true"><h3>Rolar: ${esc(label)}</h3>
-    <p class="l">Escolha vantagem ou desvantagem, de 1 a 5 níveis. Nível 1 soma 1d6 ao resultado, e cada nível a mais soma mais 1 (nível 2 = 1d6+1, nível 3 = 1d6+2). A desvantagem funciona igual, mas subtrai.</p>
-    <div class="l">Desvantagem</div><div class="ar dn">${[5,4,3,2,1].map(i=>bt(-i)).join('')}</div>
-    <div class="l">Vantagem</div><div class="ar up">${[1,2,3,4,5].map(bt).join('')}</div>
-    <div class="ar">${bt(0)}</div><div id="advp" class="ok"></div>
+    <div class="l">Teste</div>
+    <div class="seg"><button class="g" data-c="0">Fora de combate</button><button class="g" data-c="1">Dentro de combate</button></div>
+    <div id="chint" class="l"></div>
+    <div class="l">Vantagem e desvantagem</div>
+    <div class="lbs"><span class="dn">Desvantagem</span><span class="up">Vantagem</span></div>
+    <div class="sc">${[-5,-4,-3,-2,-1].map(slot).join('')}<button class="sl mid" data-v="0">0</button>${[1,2,3,4,5].map(slot).join('')}</div>
+    <div id="advp" class="advbig"></div>
     <div class="mr"><button class="g" id="adc">Cancelar</button><button id="ado">Rolar</button></div></div>`;
   document.body.appendChild(o);
-  const upd=()=>{o.querySelectorAll('[data-v]').forEach(b=>b.classList.toggle('on',+b.dataset.v===sel));
-    $('#advp').textContent=sel===0?'Rolagem normal, sem dados extras.':(sel>0?'Vantagem '+sel+': soma ':'Desvantagem '+(-sel)+': subtrai ')+'1d6'+(Math.abs(sel)>1?'+'+(Math.abs(sel)-1):'')+' do resultado.'};
+  const upd=()=>{
+    o.querySelectorAll('.sl').forEach(b=>{const v=+b.dataset.v;b.classList.toggle('on',v===0?sel===0:v<0?(sel<0&&v>=sel):(sel>0&&v<=sel))});
+    o.querySelectorAll('[data-c]').forEach(b=>b.classList.toggle('on',(b.dataset.c==='1')===comb));
+    const n=Math.abs(sel),f=n>1?'+'+(n-1):'';
+    $('#advp').innerHTML=sel===0?'<span class="l">Normal, sem dados extras</span>':`<span class="${sel>0?'up':'dn'}">${(sel>0?'&gt;':'&lt;').repeat(n)}</span> ${sel>0?'Vantagem':'Desvantagem'} ${n}<br><span class="l">${sel>0?'Soma':'Subtrai'} 1d6${f} do resultado</span>`;
+    $('#chint').textContent=comb?'Esperança maior: +1 Esperança. Medo maior: +1 Medo na tabela dos NPCs.':'Teste comum. Não mexe em Esperança nem em Medo.';
+  };
   const end=v=>{document.removeEventListener('keydown',kd);o.remove();res(v)};
-  const kd=e=>{if(e.key==='Escape')end(null)};
+  const go=()=>{localStorage.setItem('combate',comb?'1':'0');end({adv:sel,combat:comb})};
+  const kd=e=>{if(e.key==='Escape')end(null);else if(e.key==='ArrowLeft'){sel=Math.max(-5,sel-1);upd()}else if(e.key==='ArrowRight'){sel=Math.min(5,sel+1);upd()}else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON')go()};
   document.addEventListener('keydown',kd);
-  o.addEventListener('click',e=>{if(e.target===o)return end(null);const b=e.target.closest('[data-v]');if(b){sel=+b.dataset.v;upd()}});
-  $('#adc').onclick=()=>end(null);$('#ado').onclick=()=>end(sel);upd();$('#ado').focus();
+  o.addEventListener('click',e=>{if(e.target===o)return end(null);const v=e.target.closest('[data-v]'),c=e.target.closest('[data-c]');if(v){sel=+v.dataset.v;upd()}if(c){comb=c.dataset.c==='1';upd()}});
+  $('#adc').onclick=()=>end(null);$('#ado').onclick=go;upd();$('#ado').focus();
 })}
-async function rollDice(label,mod,who,adv){
-  mod=parseInt(mod)||0;adv=adv||0;const h=rnd(),f=rnd(),d6=adv?[rnd6()]:[],flat=adv?Math.abs(adv)-1:0,bonus=(adv<0?-1:1)*(d6.reduce((a,b)=>a+b,0)+flat);
+async function rollDice(label,mod,who,adv,combat){
+  mod=parseInt(mod)||0;adv=adv||0;const h=rnd(),f=rnd(),eff=combat?(h>f?'esp':f>h?'medo':''):'',d6=adv?[rnd6()]:[],flat=adv?Math.abs(adv)-1:0,bonus=(adv<0?-1:1)*(d6.reduce((a,b)=>a+b,0)+flat);
   setPan(true);
-  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,adv,d6,flat,bonus,total:Math.max(h,f)+mod+bonus,t:serverTimestamp()})}
+  try{await addDoc(collection(db,'rolls'),{uid:user.uid,who:who||localStorage.getItem('nick')||'?',label:label||'Teste',h,f,mod,adv,d6,flat,bonus,combat:!!combat,eff,total:Math.max(h,f)+mod+bonus,t:serverTimestamp()})}
   catch(e){alert('Não foi possível registrar a rolagem.')}
-  return {h,f};
+  if(eff==='medo')setDoc(doc(db,'config','medo'),{pts:increment(1)},{merge:true}).catch(()=>{});
+  return {h,f,eff};
 }
 const setPan=o=>{$('#dpan')?.classList.toggle('hide',!o);const t=$('#dtog');if(t)t.style.display=o?'none':''};
 const diceAdmin=()=>{$('#dclr')?.classList.toggle('hide',!admin)};
@@ -345,7 +366,7 @@ function diceInit(){
       return `<div class="rl${crit?' crit':''}"><div class="rw"><b>${esc(v.who)}</b><span>${esc(v.label)} ${tm}</span></div>
         <div class="rd2"><div class="dv h${hv>=fv?' win':''}"><i class="dh">${v.h}</i><small>Esperança</small><span>${sg} ${m} = <b>${hv}</b></span></div>
         <div class="dv f${fv>=hv?' win':''}"><i class="df">${v.f}</i><small>Medo</small><span>${sg} ${m} = <b>${fv}</b></span></div></div>
-        ${v.adv?`<div class="adv ${v.adv>0?'up':'dn'}"><span>${v.adv>0?'Vantagem':'Desvantagem'} ${Math.abs(v.adv)}</span>${(v.d6||[]).map(x=>`<i>${x}</i>`).join('')}${v.flat?`<small>${v.adv>0?'+':'−'} ${v.flat}</small>`:''}<b>${v.bonus>=0?'+':'−'} ${Math.abs(v.bonus)}</b></div>`:''}<div class="rres"><span>${crit?'<b class="cb">SUCESSO CRÍTICO!</b>':`Resultado (${w})`}</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
+        ${v.adv?`<div class="adv ${v.adv>0?'up':'dn'}"><span>${v.adv>0?'Vantagem':'Desvantagem'} ${Math.abs(v.adv)}</span>${(v.d6||[]).map(x=>`<i>${x}</i>`).join('')}${v.flat?`<small>${v.adv>0?'+':'−'} ${v.flat}</small>`:''}<b>${v.bonus>=0?'+':'−'} ${Math.abs(v.bonus)}</b></div>`:''}${v.combat?`<div class="cmb">Em combate${v.eff==='esp'?': +1 Esperança':v.eff==='medo'?': +1 Medo':''}</div>`:''}<div class="rres"><span>${crit?'<b class="cb">SUCESSO CRÍTICO!</b>':`Resultado (${w})`}</span><b class="rt">${res}</b></div></div>`}).join('')||'<p class="l">Nenhuma rolagem ainda.</p>'},()=>{});
 }
 function diceOff(){unsub&&unsub();unsub=null;$('#dice')?.remove()}
 
@@ -497,8 +518,9 @@ async function list(sec){
   if(sec==='npc'&&!admin) return hub();
   app.innerHTML=`<div class="wrap">${top(1)}<h2>${SECS[sec][0]}</h2><br>${sec==='npc'?'<div class="box" id="medo"><h3>Medo</h3><div class="mp"><button class="g" id="mm">−</button><input id="mpts" type="number"><button class="g" id="mp">+</button></div></div>':''}<div class="tb"><input id="q" type="search" placeholder="Buscar por nome, função, rank…"><select id="so"><option value="nome">Ordenar: Nome</option><option value="lvl">Ordenar: Nível</option><option value="rank">Ordenar: Rank</option></select><label class="chk"><input type="checkbox" id="mine"> Só as minhas</label><div class="vt"><button class="g" id="vg">Cards</button><button class="g" id="vl">Lista</button></div><button id="nw">+ Nova ficha</button><span id="cnt" class="l"></span></div><div class="grid gc" id="g">Carregando…</div></div>`;
   topBind(hub);
+  let umed=null;
   if(sec==='npc'){const ref=doc(db,'config','medo'),mi=$('#mpts');let p=0;
-    try{p=(await getDoc(ref)).data()?.pts||0}catch(e){}
+    umed=onSnapshot(ref,sn=>{p=sn.exists()?(sn.data().pts||0):0;if(document.activeElement!==mi)mi.value=p},()=>{});
     mi.value=p;const sv=v=>{p=Math.max(0,parseInt(v)||0);mi.value=p;setDoc(ref,{pts:p}).catch(()=>alert('Não foi possível salvar o Medo.'))};
     mi.onchange=()=>sv(mi.value);$('#mm').onclick=()=>sv(p-1);$('#mp').onclick=()=>sv(p+1)}
   const cs=await getDocs(query(collection(db,'cards'),where('sec','==',sec)));
@@ -534,6 +556,7 @@ async function list(sec){
   $('#vg').onclick=()=>{st.view='grid';localStorage.setItem('view','grid');render()};$('#vl').onclick=()=>{st.view='list';localStorage.setItem('view','list');render()};
   $('#nw').onclick=async()=>{const S0={nome:'Novo personagem',lvl:1,xp:0,a:{},sk:{},cb:{},hp:{},pw:[],inv:[],nt:''};const r=await addDoc(collection(db,'fichas'),{sec,owner:user.uid,s:S0});await setDoc(doc(db,'cards',r.id),summ(S0,sec,user.uid));sheet(r.id,sec)};
   unsubSheet=onSnapshot(query(collection(db,'cards'),where('sec','==',sec)),sn=>{all=new Map(sn.docs.map(d=>[d.id,d.data()]));render()},()=>{const g=$('#g');if(g)g.textContent='Não foi possível carregar as fichas. Confira as regras do Firebase.'});
+  if(umed){const u0=unsubSheet;unsubSheet=()=>{u0();umed()}}
 }
 
 /* ---------- FICHA ---------- */
@@ -640,7 +663,7 @@ async function sheet(id,sec,from){
   $('#ainv').onclick=()=>{S.inv.push({n:'',q:1,d:''});lists();save()};
   $('#atal').onclick=()=>{S.tal.push({n:'',d:''});lists();save()};
   /* entrada genérica */
-  app.firstElementChild.addEventListener('click',async e=>{if(e.target.closest('#loc')){const d=await rollLoc(S.nome);$('#locr').textContent=d+': '+LOCS[d-1];return}const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);const adv=await askAdv(b.dataset.rl);if(adv===null)return;const rr=await rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome,adv);if(rr&&rr.h>rr.f&&can){S.esp=n(S.esp)+1;const ei=app.querySelector('[data-k=esp]');if(ei)ei.value=S.esp;calc();save()}});
+  app.firstElementChild.addEventListener('click',async e=>{if(e.target.closest('#loc')){const d=await rollLoc(S.nome);$('#locr').textContent=d+': '+LOCS[d-1];return}const b=e.target.closest('[data-rl]');if(!b)return;const m=b.dataset.rk!==undefined?n(S.sk[b.dataset.rk]):(parseInt($('#'+b.dataset.rm).textContent)||0);const ask=await askAdv(b.dataset.rl);if(!ask)return;const rr=await rollDice(b.dataset.rl,m+n($('#rbonus').value),S.nome,ask.adv,ask.combat);if(rr&&rr.eff==='esp'&&can){S.esp=n(S.esp)+1;const ei=app.querySelector('[data-k=esp]');if(ei)ei.value=S.esp;calc();save()}});
   app.firstElementChild.addEventListener('input',e=>{const el=e.target;
     if(el.dataset.s){const k=el.dataset.s,m=k==='san'?10+A('int')+A('pod'):k==='ene'?10+A('for')+A('con'):vmax();S['d'+k]=m-n(el.value);calc();save();return}
     if(el.dataset.hp){const i=LIMBS.find(x=>x[0]===el.dataset.hp)[2];S.hp[el.dataset.hp]=hp()[i]-n(el.value);calc();save();return}
